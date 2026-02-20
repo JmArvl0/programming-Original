@@ -175,8 +175,13 @@ class ScheduleRatesModel
             return $response;
         }
 
-        $conn = @new mysqli(DB_HOST, DB_USER, defined('DB_PASS') ? DB_PASS : '', DB_NAME);
-        if ($conn->connect_error) {
+        try {
+            $conn = @new mysqli(DB_HOST, DB_USER, defined('DB_PASS') ? DB_PASS : '', DB_NAME);
+        } catch (Throwable $e) {
+            $response['error'] = 'Unable to load bookings data.';
+            return $response;
+        }
+        if (!($conn instanceof mysqli) || $conn->connect_error) {
             $response['error'] = 'Unable to load bookings data.';
             return $response;
         }
