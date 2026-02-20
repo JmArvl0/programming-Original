@@ -3,6 +3,10 @@
 This project now uses a clean entrypoint pattern on:
 - `index.php`
 - `account_executive.php`
+- `crm.php`
+- `facilities.php`
+- `passport_visa.php`
+- `schedule_rates.php`
 
 Each entrypoint should only instantiate a controller and call one action.
 
@@ -39,7 +43,7 @@ Each entrypoint should only instantiate a controller and call one action.
 
 ## How to Migrate Remaining Pages
 
-For each page (`crm.php`, `facilities.php`, `passport_visa.php`, `schedule_rates.php`):
+For any additional page:
 
 1. Create `models/<PageName>Model.php`.
 2. Create `controllers/<PageName>Controller.php`.
