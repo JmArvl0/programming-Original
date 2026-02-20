@@ -1,7 +1,189 @@
 <?php
 require_once __DIR__ . '/includes/auth.php';
+require_once __DIR__ . '/config/database.php';
 $pageTitle = "Schedule & Rates";
 $pageSubtitle = "Manage tour schedules, availability, and pricing";
+
+function getTableColumns(mysqli $conn, string $table): array {
+    $columns = [];
+    $escapedTable = $conn->real_escape_string($table);
+    $result = $conn->query("SHOW COLUMNS FROM `{$escapedTable}`");
+    if ($result instanceof mysqli_result) {
+        while ($row = $result->fetch_assoc()) {
+            $columns[] = $row['Field'];
+        }
+        $result->free();
+    }
+    return $columns;
+}
+
+function pickExistingColumn(array $columns, array $candidates): ?string {
+    foreach ($candidates as $candidate) {
+        if (in_array($candidate, $columns, true)) {
+            return $candidate;
+        }
+    }
+    return null;
+}
+
+function tableExists(mysqli $conn, string $tableName): bool {
+    $stmt = $conn->prepare('SHOW TABLES LIKE ?');
+    if (!$stmt) {
+        return false;
+    }
+    $stmt->bind_param('s', $tableName);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $exists = $result && $result->num_rows > 0;
+    $stmt->close();
+    return $exists;
+}
+
+function fetchGuestsForSelectedDate(string $selectedDate): array {
+    $response = [
+        'rows' => [],
+        'tourStats' => [],
+        'error' => null
+    ];
+
+    if (!defined('DB_HOST') || !defined('DB_USER') || !defined('DB_NAME')) {
+        $response['error'] = 'Unable to load bookings data.';
+        return $response;
+    }
+
+    $conn = @new mysqli(DB_HOST, DB_USER, defined('DB_PASS') ? DB_PASS : '', DB_NAME);
+    if ($conn->connect_error) {
+        $response['error'] = 'Unable to load bookings data.';
+        return $response;
+    }
+
+    try {
+        $requiredTables = ['bookings', 'tours', 'guests'];
+        foreach ($requiredTables as $tableName) {
+            if (!tableExists($conn, $tableName)) {
+                $response['error'] = 'Bookings tables are not available in this environment.';
+                closeDBConnection($conn);
+                return $response;
+            }
+        }
+
+        $bookingColumns = getTableColumns($conn, 'bookings');
+        $tourColumns = getTableColumns($conn, 'tours');
+        $guestColumns = getTableColumns($conn, 'guests');
+
+        $bookingDateCol = pickExistingColumn($bookingColumns, ['booking_date', 'tour_date', 'schedule_date', 'departure_date', 'date']);
+        $bookingStatusCol = pickExistingColumn($bookingColumns, ['booking_status', 'status']);
+        $bookingTourFkCol = pickExistingColumn($bookingColumns, ['tour_id', 'schedule_id', 'trip_id']);
+        $bookingGuestFkCol = pickExistingColumn($bookingColumns, ['guest_id', 'customer_id', 'passenger_id']);
+        $bookingSeatCol = pickExistingColumn($bookingColumns, ['seat_number', 'slot_number', 'seat', 'slot']);
+
+        $tourPkCol = pickExistingColumn($tourColumns, ['id', 'tour_id']);
+        $guestPkCol = pickExistingColumn($guestColumns, ['id', 'guest_id', 'customer_id']);
+
+        $tourNameCol = pickExistingColumn($tourColumns, ['tour_name', 'name', 'title']);
+        $destinationCol = pickExistingColumn($tourColumns, ['destination', 'location']);
+        $capacityCol = pickExistingColumn($tourColumns, ['capacity', 'max_capacity', 'total_slots']);
+        $departureCol = pickExistingColumn($tourColumns, ['departure_time', 'start_time', 'time']);
+
+        if (!$bookingDateCol || !$bookingStatusCol || !$bookingTourFkCol || !$bookingGuestFkCol || !$tourPkCol || !$guestPkCol) {
+            $response['error'] = 'Bookings schema is missing required columns for operational view.';
+            closeDBConnection($conn);
+            return $response;
+        }
+
+        if (in_array('full_name', $guestColumns, true)) {
+            $guestNameExpr = "g.`full_name`";
+        } elseif (in_array('name', $guestColumns, true)) {
+            $guestNameExpr = "g.`name`";
+        } elseif (in_array('first_name', $guestColumns, true) && in_array('last_name', $guestColumns, true)) {
+            $guestNameExpr = "TRIM(CONCAT_WS(' ', g.`first_name`, g.`last_name`))";
+        } else {
+            $guestNameExpr = "'Unknown Guest'";
+        }
+
+        $tourNameExpr = $tourNameCol ? "t.`{$tourNameCol}`" : "'N/A'";
+        $destinationExpr = $destinationCol ? "t.`{$destinationCol}`" : "'N/A'";
+        $seatExpr = $bookingSeatCol ? "b.`{$bookingSeatCol}`" : "NULL";
+        $departureExpr = $departureCol ? "t.`{$departureCol}`" : "NULL";
+        $capacityExpr = $capacityCol ? "CAST(t.`{$capacityCol}` AS UNSIGNED)" : "NULL";
+
+        $sql = "
+            SELECT
+                {$guestNameExpr} AS guest_name,
+                {$tourNameExpr} AS tour_name,
+                {$destinationExpr} AS destination,
+                {$seatExpr} AS seat_slot,
+                b.`{$bookingStatusCol}` AS booking_status,
+                {$departureExpr} AS departure_time,
+                {$capacityExpr} AS capacity
+            FROM `bookings` b
+            INNER JOIN `tours` t ON b.`{$bookingTourFkCol}` = t.`{$tourPkCol}`
+            INNER JOIN `guests` g ON b.`{$bookingGuestFkCol}` = g.`{$guestPkCol}`
+            WHERE DATE(b.`{$bookingDateCol}`) = ?
+              AND LOWER(TRIM(b.`{$bookingStatusCol}`)) IN ('confirmed', 'reserved')
+            ORDER BY tour_name ASC, guest_name ASC
+        ";
+
+        $stmt = $conn->prepare($sql);
+        if (!$stmt) {
+            $response['error'] = 'Unable to prepare operational guest query.';
+            closeDBConnection($conn);
+            return $response;
+        }
+
+        $stmt->bind_param('s', $selectedDate);
+        $stmt->execute();
+        $result = $stmt->get_result();
+
+        $tourStats = [];
+        while ($row = $result->fetch_assoc()) {
+            $status = strtolower(trim((string)($row['booking_status'] ?? '')));
+            $statusLabel = ($status === 'reserved') ? 'Reserved' : 'Confirmed';
+            $guestName = trim((string)($row['guest_name'] ?? ''));
+            $tourName = trim((string)($row['tour_name'] ?? 'N/A'));
+            $destination = trim((string)($row['destination'] ?? 'N/A'));
+            $departureTime = isset($row['departure_time']) && $row['departure_time'] !== ''
+                ? date('g:i A', strtotime((string)$row['departure_time']))
+                : null;
+            $seatSlot = isset($row['seat_slot']) ? trim((string)$row['seat_slot']) : '';
+            $capacity = isset($row['capacity']) ? (int)$row['capacity'] : 0;
+
+            $response['rows'][] = [
+                'guest_name' => $guestName !== '' ? $guestName : 'Unknown Guest',
+                'tour_name' => $tourName !== '' ? $tourName : 'N/A',
+                'destination' => $destination !== '' ? $destination : 'N/A',
+                'seat_slot' => $seatSlot !== '' ? $seatSlot : null,
+                'booking_status' => $statusLabel,
+                'departure_time' => $departureTime,
+                'capacity' => $capacity > 0 ? $capacity : null
+            ];
+
+            $tourKey = $tourName . '|' . $destination . '|' . ($departureTime ?? '');
+            if (!isset($tourStats[$tourKey])) {
+                $tourStats[$tourKey] = [
+                    'tour_name' => $tourName !== '' ? $tourName : 'N/A',
+                    'destination' => $destination !== '' ? $destination : 'N/A',
+                    'departure_time' => $departureTime,
+                    'booked' => 0,
+                    'capacity' => $capacity > 0 ? $capacity : null,
+                    'is_full' => false
+                ];
+            }
+            $tourStats[$tourKey]['booked']++;
+            if ($tourStats[$tourKey]['capacity'] !== null && $tourStats[$tourKey]['booked'] >= $tourStats[$tourKey]['capacity']) {
+                $tourStats[$tourKey]['is_full'] = true;
+            }
+        }
+
+        $response['tourStats'] = array_values($tourStats);
+        $stmt->close();
+    } catch (Throwable $e) {
+        $response['error'] = 'Unable to fetch guests for the selected date.';
+    }
+
+    closeDBConnection($conn);
+    return $response;
+}
 
 // Generate random tour data
 function generateRandomTour($index) {
@@ -191,6 +373,10 @@ while (count($calendarDays) < 42) {
 // Default selected date (query param or first day of month)
 $selectedDay = max(1, min($selectedDayParam, $daysInMonth));
 $selectedDateData = $calendarDays[$selectedDay + $firstDayOfWeek - 1] ?? $calendarDays[$firstDayOfWeek];
+$selectedMonthNumber = (int)date('n', strtotime("1 $currentMonth 2000"));
+$selectedDateValue = sprintf('%04d-%02d-%02d', $currentYear, $selectedMonthNumber, $selectedDay);
+$selectedDateLabel = date('F j, Y', strtotime($selectedDateValue));
+$guestsForSelectedDate = fetchGuestsForSelectedDate($selectedDateValue);
 
 // Statistics for selected date
 $stats = [
@@ -427,6 +613,93 @@ $stats = [
                 </div>
             </div>
 
+
+            <!-- Guests per Selected Date (Operational View) -->
+            <div class="table-section guests-by-date-section">
+                <div class="table-header">
+                    <h2 class="section-title" style="margin: 0;">
+                        Guests for <span id="guestsSelectedDateLabel"><?php echo htmlspecialchars($selectedDateLabel); ?></span>
+                    </h2>
+                    <div class="table-controls">
+                        <span class="status-badge badge-blue guest-day-count">
+                            <span class="status-dot status-blue"></span>
+                            <?php echo count($guestsForSelectedDate['rows']); ?> Scheduled
+                        </span>
+                    </div>
+                </div>
+
+                <?php if (!empty($guestsForSelectedDate['error'])): ?>
+                    <div class="alert alert-warning py-2 px-3 mb-3">
+                        <?php echo htmlspecialchars($guestsForSelectedDate['error']); ?>
+                    </div>
+                <?php endif; ?>
+
+                <?php if (empty($guestsForSelectedDate['rows'])): ?>
+                    <div class="no-guests-message">No guests scheduled for this date.</div>
+                <?php else: ?>
+                    <div class="guests-list-compact">
+                        <?php foreach ($guestsForSelectedDate['rows'] as $guestBooking): ?>
+                            <article class="guest-date-card">
+                                <div class="guest-date-card-header">
+                                    <h3 class="guest-name mb-0"><?php echo htmlspecialchars($guestBooking['guest_name']); ?></h3>
+                                    <span class="status-badge <?php echo $guestBooking['booking_status'] === 'Reserved' ? 'badge-yellow' : 'badge-green'; ?>">
+                                        <span class="status-dot <?php echo $guestBooking['booking_status'] === 'Reserved' ? 'status-yellow' : 'status-green'; ?>"></span>
+                                        <?php echo htmlspecialchars($guestBooking['booking_status']); ?>
+                                    </span>
+                                </div>
+                                <div class="guest-date-fields">
+                                    <div class="guest-field">
+                                        <span class="guest-field-label">Tour</span>
+                                        <span class="guest-field-value"><?php echo htmlspecialchars($guestBooking['tour_name']); ?></span>
+                                    </div>
+                                    <div class="guest-field">
+                                        <span class="guest-field-label">Destination</span>
+                                        <span class="guest-field-value"><?php echo htmlspecialchars($guestBooking['destination']); ?></span>
+                                    </div>
+                                    <div class="guest-field">
+                                        <span class="guest-field-label">Seat/Slot</span>
+                                        <span class="guest-field-value"><?php echo htmlspecialchars($guestBooking['seat_slot'] ?? 'N/A'); ?></span>
+                                    </div>
+                                    <?php if (!empty($guestBooking['departure_time'])): ?>
+                                        <div class="guest-field">
+                                            <span class="guest-field-label">Departure</span>
+                                            <span class="guest-field-value"><?php echo htmlspecialchars($guestBooking['departure_time']); ?></span>
+                                        </div>
+                                    <?php endif; ?>
+                                </div>
+                            </article>
+                        <?php endforeach; ?>
+                    </div>
+
+                    <?php if (!empty($guestsForSelectedDate['tourStats'])): ?>
+                        <div class="tour-capacity-grid">
+                            <?php foreach ($guestsForSelectedDate['tourStats'] as $tourStat): ?>
+                                <div class="tour-capacity-item <?php echo $tourStat['is_full'] ? 'full' : ''; ?>">
+                                    <div class="tour-capacity-title-wrap">
+                                        <strong><?php echo htmlspecialchars($tourStat['tour_name']); ?></strong>
+                                        <?php if ($tourStat['is_full']): ?>
+                                            <span class="status-badge badge-red">
+                                                <span class="status-dot status-red"></span>
+                                                FULL
+                                            </span>
+                                        <?php endif; ?>
+                                    </div>
+                                    <div class="tour-capacity-sub"><?php echo htmlspecialchars($tourStat['destination']); ?></div>
+                                    <div class="tour-capacity-meta">
+                                        Booked: <?php echo (int)$tourStat['booked']; ?>
+                                        <?php if (!empty($tourStat['capacity'])): ?>
+                                            / <?php echo (int)$tourStat['capacity']; ?>
+                                        <?php endif; ?>
+                                        <?php if (!empty($tourStat['departure_time'])): ?>
+                                            | Departure: <?php echo htmlspecialchars($tourStat['departure_time']); ?>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php endif; ?>
+                <?php endif; ?>
+            </div>
 
             <!-- Guest List Section -->
             <div class="table-section">
