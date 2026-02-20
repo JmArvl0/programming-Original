@@ -1,4 +1,21 @@
-<h2 class="crm-section-title">Client Overview</h2>
+<div class="section-header">
+    <h2 class="crm-section-title">Client Overview</h2>
+    <div class="table-controls">
+        <div class="left-controls">
+            <input type="text" class="form-control search-input" placeholder="Search name or destination...">
+            <select class="form-select filter-select">
+                <option>All</option>
+                <option>Paid</option>
+                <option>Unpaid</option>
+                <option>Overdue</option>
+                <option>Partially Paid</option>
+            </select>
+        </div>
+        <button id="sendPaymentReminderBtn" class="btn btn-warning">
+            <i class="fa fa-bell"></i> Send Reminder
+        </button>
+    </div>
+</div>
 
 <div class="crm-grid">
     <div class="crm-card">

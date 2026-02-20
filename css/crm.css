@@ -57,6 +57,17 @@ input[type="checkbox"] {
 }
 
 /* TITLES */
+.section-header {
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding: 12px 14px;
+    margin-bottom:10px;
+    background: #fff;
+    box-shadow:0 1px 8px rgba(0,0,0,.06);
+    border-radius: 10px;
+}
+
 .crm-section-title {
     font-size:1.6rem;
     font-weight:600;
@@ -64,6 +75,20 @@ input[type="checkbox"] {
     margin-bottom:20px;
     margin-top: 20px;
 }
+
+.table-controls {
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:15px;
+    position:sticky;
+}
+
+.left-controls {
+    display:flex;
+    gap:10px;
+}
+
 
 .crm-title{
     display:flex;
