@@ -11,9 +11,12 @@
                 <option>Partially Paid</option>
             </select>
         </div>
-        <button id="sendPaymentReminderBtn" class="btn btn-warning">
-            <i class="fa fa-bell"></i> Send Reminder
-        </button>
+        <div class="crm-table-toolbar">
+            <div class="crm-toolbar-right">
+                <button class="crm-btn crm-btn-news"><i class="fa fa-envelope"></i> Send Newsletter</button>
+                <button class="crm-btn crm-btn-export"><i class="fa fa-file-export"></i> Export Report</button>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -59,22 +62,7 @@
 </div>
 
 <div class="crm-table-wrapper">
-    <div class="crm-table-toolbar">
-        <div class="crm-toolbar-left">
-            <input class="crm-search" placeholder="Search name, destination or email...">
-            <select class="crm-filter">
-                <option>All Tiers</option>
-                <option>VIP</option>
-                <option>Gold</option>
-                <option>Silver</option>
-                <option>New</option>
-            </select>
-        </div>
-        <div class="crm-toolbar-right">
-            <button class="crm-btn crm-btn-news"><i class="fa fa-envelope"></i> Send Newsletter</button>
-            <button class="crm-btn crm-btn-export"><i class="fa fa-file-export"></i> Export Report</button>
-        </div>
-    </div>
+    
 
     <div class="crm-table-scroll">
         <table class="table crm-table table-hover mb-0">
