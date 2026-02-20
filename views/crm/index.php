@@ -58,8 +58,6 @@
     </div>
 </div>
 
-<h2 class="crm-section-title">Customer Records</h2>
-
 <div class="crm-table-wrapper">
     <div class="crm-table-toolbar">
         <div class="crm-toolbar-left">
