@@ -1,0 +1,580 @@
+/* Dashboard-specific CSS */
+:root {
+    --primary-blue: #007bff;
+    --success-green: #28a745;
+    --warning-yellow: #ffc107;
+    --danger-red: #dc3545;
+    --info-blue: #17a2b8;
+    --accent-blue: #6f42c1;
+    --text-light: #6c757d;
+    --purple: #7c3aed;
+    --gold: #f59e0b;
+    --silver-start: #eef2f7;
+    --silver-end: #a8b2c2;
+    --silver-text: #64748b;
+    --new-lead: #0ea5e9;
+    --light-bg: #f8fafc;
+}
+
+.content-container {
+    padding: 20px;
+}
+
+/* Improved Widget Cards */
+.metric-card {
+    background: white;
+    border-radius: 12px;
+    border: 1px solid #e9ecef;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    height: 100%;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    overflow: hidden;
+}
+
+.metric-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+}
+
+/* Standout variant for the top 4 metric cards
+   Use this when card bg matches page theme so contents adjust for contrast */
+.metric-card.highlight-card {
+    /* Reverted to neutral white background for overview cards */
+    background: white;
+    border: 1px solid #e9ecef;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.metric-card.highlight-card .card-body {
+    padding: 20px;
+}
+
+.metric-card.highlight-card .metric-icon {
+    box-shadow: 0 6px 18px rgba(2,6,23,0.06);
+}
+
+/* Adjust text colors for white background to maintain corporate contrast */
+.metric-card.highlight-card .metric-title,
+.metric-card.highlight-card .donut-chart-value,
+.metric-card.highlight-card .progress-value,
+.metric-card.highlight-card .rating-value,
+.metric-card.highlight-card .urgent-document-text,
+.metric-card.highlight-card .total-slots,
+.metric-card.highlight-card .progress-percentage {
+    color: #212529; /* dark, corporate-friendly text on white */
+}
+
+.metric-card.highlight-card .donut-chart-label,
+.metric-card.highlight-card .metric-title + p,
+.metric-card.highlight-card .status-labels,
+.metric-card.highlight-card .rating-max {
+    color: var(--text-light); /* muted labels on white */
+}
+
+.metric-card .card-body {
+    padding: 20px;
+}
+
+.card-header-section {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.metric-icon {
+    width: 53px;
+    height: 53px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    margin-left: 15px;
+}
+
+.metric-title {
+    font-weight: 600;
+    color: #495057;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 5px;
+}
+
+.card-header-section .metric-title {
+    margin-bottom: 0;
+}
+
+/* Donut Chart - Improved */
+.donut-chart-container {
+    position: relative;
+    width: 190px;
+    height: 190px;
+    margin: 0 auto;
+}
+
+.donut-chart-svg {
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+}
+
+.donut-chart-bg {
+    fill: none;
+    stroke: #f1f3f9;
+    stroke-width: 12;
+}
+
+.donut-chart-progress {
+    fill: none;
+    stroke-width: 12;
+    stroke-linecap: round;
+    stroke-dasharray: 314;
+    stroke-dashoffset: 314;
+    animation: donut-fill 1.5s ease-out forwards;
+}
+
+.donut-chart-value {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 30px;
+    font-weight: 700;
+    color: #333;
+}
+
+.donut-chart-label {
+    text-align: center;
+    margin-top: 15px;
+    font-size: 14px;
+    color: var(--text-light);
+    font-weight: 500;
+}
+
+@keyframes donut-fill {
+    to {
+        stroke-dashoffset: calc(314 - (314 * var(--percentage)) / 100);
+    }
+}
+
+/* Progress Bar - Improved */
+.progress-value-index {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    margin: 15px 0 15px;
+}
+
+.progress-value {
+    font-weight: 700;
+    color: #333;
+    font-size: clamp(2.6rem, 3.8vw, 3.6rem);
+}
+
+.total-slots {
+    font-size: 14px;
+    color: var(--text-light);
+    font-weight: 500;
+}
+
+.metric-progress-container {
+    margin-top: 20px;
+}
+
+.progress-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+/* Scoped booking slots value styles to avoid accidental global overrides */
+#content-wrapper .booking-slots-value-wrap {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    margin: 15px 0 15px;
+}
+
+#content-wrapper .booking-slots-value {
+    display: block;
+    font-weight: 700;
+    color: #333;
+    font-size: clamp(2.6rem, 3.8vw, 3.6rem);
+    line-height: 1.1;
+}
+
+.progress-percentage {
+    font-weight: 600;
+    color: var(--primary-blue);
+    font-size: 14px;
+}
+
+.progress-bar-custom {
+    height: 8px;
+    background: #f1f3f9;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.progress-fill-custom {
+    height: 100%;
+    border-radius: 4px;
+    background: linear-gradient(90deg, var(--primary-blue), #4dabf7);
+    transition: width 1.5s ease-out;
+}
+
+/* Document Status Card */
+.urgent-document {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    gap: 8px;
+    margin: 15px 0 15px;
+}
+
+.urgent-document-text {
+    font-size: clamp(2.6rem, 3.8vw, 3.6rem);
+    font-weight: 700;
+    color: #dc3545;
+}
+
+.urgency-status {
+    font-size: 14px;
+    color: var(--danger-red-light);
+    font-weight: 500;
+}
+
+.document-status {
+    margin-top: 20px;
+}
+
+.status-bars {
+    display: flex;
+    gap: 4px;
+    height: 32px;
+    border-radius: 6px;
+    overflow: hidden;
+    margin-bottom: 8px;
+    margin-top: 35px;
+}
+
+.status-urgent {
+    background: linear-gradient(135deg, var(--danger-red), #ff6b6b);
+    flex: 1;
+}
+
+.status-approved {
+    background: linear-gradient(135deg, var(--success-green), #51cf66);
+    flex: 1;
+}
+
+.status-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--text-light);
+}
+
+/* Customer Feedback Card */
+.rating-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.rating-score {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 8px;
+    margin: 15px 25px 15px;
+    line-height: 1;
+}
+
+.rating-value {
+    font-size: clamp(2.6rem, 3.8vw, 3.6rem);
+    font-weight: 700;
+    color: #333;
+    margin: 0;
+}
+
+.rating-max {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 14px;
+    color: var(--text-light);
+    font-weight: 700;
+    margin-top: 15px;
+}
+
+.stars {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: #ffc107;
+    font-size: 30px;
+    letter-spacing: 2px;
+}
+
+.rating-chart {
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 10px;
+    height: 80px;
+    width: 100%;
+    max-width: 200px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.rating-bar {
+    width: 20px;
+    background: linear-gradient(to top, var(--primary-blue), #4dabf7);
+    border-radius: 3px 3px 0 0;
+    transition: height 0.3s ease;
+}
+
+/* Status Dots */
+.status-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 8px;
+}
+
+.status-green { background: var(--success-green); }
+.status-red { background: var(--danger-red); }
+.status-yellow { background: var(--warning-yellow); }
+.status-blue { background: var(--info-blue); }
+
+/* Action Links */
+.action-link {
+    text-decoration: none;
+    font-size: 13px;
+    white-space: nowrap;
+}
+
+/* Map Container */
+.map-container {
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    border-radius: 12px;
+    padding: 30px;
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+/* Progress Bar Colors */
+.bg-purple {
+    background: linear-gradient(135deg, var(--purple), #9c6afe) !important;
+}
+
+/* CRM Trends */
+.crm-trends-header {
+    align-items: center;
+}
+
+.crm-vip-indicator {
+    font-size: 12px;
+    font-weight: 700;
+    color: #5f3dc4;
+    background: rgba(124, 58, 237, 0.12);
+    border: 1px solid rgba(124, 58, 237, 0.25);
+    border-radius: 999px;
+    padding: 4px 10px;
+    line-height: 1;
+}
+
+.crm-trends-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.crm-tier-box {
+    border: 1px solid #e9ecef;
+    border-radius: 10px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-height: 200px;
+}
+
+.crm-tier-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 20px;
+    gap: 8px;
+    margin-bottom: 20px;
+}
+
+.crm-tier-count {
+    font-size: 12px;
+    color: var(--text-light);
+    font-weight: 600;
+    line-height: 1.1;
+}
+
+.crm-tier-label {
+    font-size: 12px;
+    font-weight: 700;
+    color: #495057;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    text-align: right;
+}
+
+.crm-tier-icon {
+    width: 50px;
+    height: 50px;
+    margin: 20px auto ;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    color: #fff;
+    line-height: 1;
+    border-radius: 50%;
+    box-shadow: 0 6px 14px rgba(18, 38, 63, 0.06);
+}
+
+.crm-tier-icon-vip {
+    background: linear-gradient(135deg, var(--purple), #9c6afe);
+}
+
+.crm-tier-icon-gold {
+    background: linear-gradient(135deg, #f59e0b, #fbbf24);
+}
+
+.crm-tier-icon-silver {
+    /* Brighter metallic silver with subtle sheen */
+    background: linear-gradient(135deg, #f6f9fb 0%, #dfe8ef 40%, #b9c4cd 100%);
+    color: #0f1724;
+    box-shadow: inset 0 2px 6px rgba(255,255,255,0.6), 0 6px 12px rgba(2,6,23,0.06);
+}
+
+.crm-tier-icon-new-lead {
+    background: linear-gradient(135deg, #0ea5e9, #38bdf8);
+}
+
+.crm-tier-progress {
+    height: 8px;
+    margin-top: auto;
+}
+
+.crm-tier-progress-vip {
+    background: linear-gradient(135deg, var(--purple), #9c6afe) !important;
+}
+
+.crm-tier-progress-gold {
+    background: linear-gradient(135deg, #f59e0b, #fbbf24) !important;
+}
+
+.crm-tier-progress-silver {
+    background: linear-gradient(135deg, var(--silver-start), var(--silver-end)) !important;
+}
+
+.crm-tier-progress-new-lead {
+    background: linear-gradient(135deg, #0ea5e9, #38bdf8) !important;
+}
+
+/* Table Styling */
+.table-responsive {
+    overflow-x: auto;
+}
+
+table {
+    width: 100%;
+    min-width: 500px;
+}
+
+/* Clickable rows */
+.clickable-row {
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.clickable-row:hover {
+    background-color: rgba(0, 123, 255, 0.05);
+}
+
+/* Action buttons */
+.btn-action {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+    .content-container {
+        padding: 15px;
+    }
+    
+    .metric-card .card-body {
+        padding: 20px;
+    }
+    
+    .donut-chart-container {
+        width: 100px;
+        height: 100px;
+    }
+    
+    .donut-chart-value {
+        font-size: 20px;
+    }
+    
+    .metric-icon {
+        width: 40px;
+        height: 40px;
+        font-size: 18px;
+    }
+    
+    .map-container {
+        padding: 20px;
+    }
+    
+    .rating-value {
+        font-size: 30px;
+    }
+}
+
+@media (max-width: 576px) {
+    .donut-chart-container {
+        width: 80px;
+        height: 80px;
+    }
+    
+    .donut-chart-value {
+        font-size: 18px;
+    }
+    
+    .metric-card .card-body {
+        padding: 16px;
+    }
+    
+    .map-container {
+        padding: 15px;
+    }
+
+    .crm-tier-box {
+        min-height: 108px;
+        padding: 8px;
+    }
+
+    .crm-tier-icon {
+        width: 38px;
+        height: 38px;
+        font-size: 18px;
+    }
+}

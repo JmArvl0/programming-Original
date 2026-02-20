@@ -1,0 +1,185 @@
+/* Sidebar specific styles for better alignment */
+.nav-link {
+    transition: all 0.2s ease;
+}
+
+.nav-link:hover {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+    transform: translateX(5px);
+}
+
+.nav-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.nav-text {
+    line-height: 1.2;
+    font-weight: 500;
+}
+
+/* Logo styling */
+.company-logo {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.logo-wrapper img {
+    transition: all 0.3s ease;
+}
+
+/* Fix for logo container */
+.logo-container {
+    min-height: 150px; /* Increased height to accommodate logo */
+}
+
+/* Make sure buttons are properly sized */
+.btn-light {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Better alignment for all items */
+.nav-menu .nav-item {
+    display: flex;
+}
+
+.nav-menu .nav-link {
+    flex: 1;
+    align-items: center;
+}
+
+/* Active state styling */
+.nav-link.active {
+    background-color: rgba(255, 255, 255, 0.2) !important;
+    border-left: 4px solid white;
+    padding-left: calc(1rem - 4px) !important;
+}
+
+/* Logout button styling */
+.logout .nav-link {
+    border-radius: 8px;
+    margin-top: 10px;
+}
+
+/* Update primary color styles */
+.btn-primary {
+    background-color: #367588 !important;
+    border-color: #367588 !important;
+}
+
+.btn-primary:hover {
+    background-color: #2c5e6d !important;
+    border-color: #2c5e6d !important;
+}
+
+.modal-header, .modal-footer {
+    border-color: rgba(54, 117, 136, 0.1);
+}
+
+/* Remove Bootstrap's bg-primary class from sidebar */
+.sidebar.bg-primary {
+    background-color: #367588 !important;
+}
+
+/* Ensure logo is visible on dark background */
+.company-logo img[alt*="Beyond"] {
+    background-color: transparent;
+}
+
+/* ===============================
+   SIDEBAR — SINGLE SOURCE OF TRUTH
+================================ */
+
+#appSidebar.offcanvas {
+    width: 260px;
+    background: #367588;
+}
+
+#appSidebar .offcanvas-header {
+    background: #367588;
+    color: #fff;
+}
+
+#appSidebar .offcanvas-body {
+    background: #367588;
+}
+
+/* Ensure content uses full width when sidebar is offcanvas */
+#content-wrapper {
+    margin-left: 0 !important;
+    width: 100%;
+}
+
+.header {
+    margin-left: 0 !important;
+}
+
+/* Header notification icons */
+.header-right .notification-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.header-right .icon-trigger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border: 0 !important;
+    background: transparent !important;
+    border-radius: 0 !important;
+    color: inherit;
+    line-height: 0;
+    box-shadow: none !important;
+    appearance: none;
+    outline: none !important;
+    cursor: pointer;
+}
+
+.header-right .icon-trigger:hover,
+.header-right .icon-trigger:focus {
+    background: transparent;
+    outline: none;
+}
+
+.header-right .icon-trigger:focus-visible {
+    outline: none;
+    box-shadow: none;
+}
+
+.header-right .notification-badge {
+    font-size: 0.65rem;
+    padding: 0.25em 0.4em;
+}
+
+
+/* Header hamburger button */
+.hamburger-btn {
+    width: 40px;
+    height: 36px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 0;
+}
+
+.hamburger {
+    display: inline-flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.hamburger > span {
+    width: 18px;
+    height: 2px;
+    background-color: currentColor;
+}

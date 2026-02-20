@@ -1,0 +1,256 @@
+:root{
+    --vip:#7c3aed;
+    --gold:#fbbf24;
+    --silver:#9aa4b2;
+    --silver-start:#eef2f7;
+    --silver-end:#a8b2c2;
+    --silver-text:#64748b;
+    --new:#0ea5e9;
+    --green:#16a34a;
+    --red:#dc2626;
+    --primary:#367588;
+}
+
+body{background:#f8f9fa}
+
+/* ===== Loyalty Tier Badges ===== */
+.badge-vip{background:#ede9fe;color:#6d28d9}
+.badge-gold{background:#fef3c7;color:#d97706}
+.badge-silver{
+    background:linear-gradient(135deg,var(--silver-start),var(--silver-end));
+    color:#334155;
+}
+.badge-new{background:#e0f2fe;color:#0284c7}
+
+/* ===== MAIN WRAPPER ===== */
+#content-wrapper{
+    margin-left: 0;
+    margin-right: 0;
+    padding: 0;
+}
+
+.content-container{
+    padding:20px;
+    background-color:#f8f9fa;
+    min-height:calc(100vh - 70px);
+}
+
+/* ===== KPI GRID ===== */
+.crm-grid{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:20px;
+    margin-bottom:30px;
+}
+@media(max-width:1200px){.crm-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:576px){.crm-grid{grid-template-columns:1fr}}
+
+input[type="checkbox"] {
+    display: none;
+}
+
+.crm-card{
+    background:#fff;
+    border-radius:14px;
+    padding:22px;
+    box-shadow:0 6px 18px rgba(0,0,0,.08);
+}
+
+/* TITLES */
+.crm-section-title {
+    font-size:1.6rem;
+    font-weight:600;
+    color:var(--primary);
+    margin-bottom:20px;
+    margin-top: 20px;
+}
+
+.crm-title{
+    display:flex;
+    justify-content:space-between;
+    font-size:14px;
+    font-weight:600;
+}
+
+table th {
+    font-weight: 800; /* bold */
+}
+
+.crm-value{
+    font-size:34px;
+    font-weight:800;
+    margin-top:10px;
+}
+
+.crm-sub{font-size:13px;color:#6b7280}
+
+.crm-progress{
+    height:6px;
+    background:#e5e7eb;
+    border-radius:4px;
+    margin:12px 0;
+}
+.crm-bar{height:100%;border-radius:4px}
+
+.feedback-card .crm-progress {
+    width: 86%;           /* 👈 shrink width */
+    margin: 6px auto 0;   /* center it */
+    margin-left: 2px;
+}
+
+.bar-vip{background:var(--vip)}
+.bar-gold{background:var(--gold)}
+.bar-silver{background:linear-gradient(135deg,var(--silver-start),var(--silver-end))}
+.bar-new{background:var(--new)}
+
+.tier-strip{
+    display:flex;
+    height:34px;
+    border-radius:8px;
+    overflow:hidden;
+    margin:20px 0;
+}
+
+/* ===== TABLE ===== */
+.crm-table-wrapper{
+    background:#fff;
+    border-radius:14px;
+    box-shadow:0 6px 18px rgba(0,0,0,.08);
+    overflow:hidden;
+}
+
+/* Sticky toolbar */
+.crm-table-toolbar{
+    position:sticky;
+    top:0;
+    z-index:10;
+    background:#fff;
+    padding:16px 20px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    border-bottom:1px solid #e5e7eb;
+}
+
+.crm-toolbar-left,
+.crm-toolbar-right{
+    display:flex;
+    gap:10px;
+    align-items:center;
+}
+
+.crm-search,
+.crm-filter{
+    padding:8px 14px;
+    border:1px solid #d1d5db;
+    border-radius:6px;
+    font-size:14px;
+}
+
+.crm-btn{
+    padding:8px 16px;
+    border-radius:6px;
+    font-size:14px;
+    font-weight:600;
+    border:none;
+    cursor:pointer;
+}
+
+.crm-btn-news{background:#fbbf24}
+.crm-btn-export{background:#0ea5e9;color:#fff}
+
+/* Scroll area */
+.crm-table-scroll{
+    max-height:750px;
+    overflow:auto;
+}
+
+/* Sticky header */
+.crm-table thead th{
+    position:sticky;
+    top:0;
+    background:#f9fafb;
+    z-index:5;
+    font-size:12px;
+    letter-spacing:.04em;
+    text-transform:uppercase;
+    color:#374151;
+    border-bottom:1px solid #e5e7eb;
+}
+
+/* Badges */
+.badge-doc-missing{background:#fef3c7;color:#d97706}
+.badge-doc-approved{background:#dcfce7;color:#15803d}
+
+.badge-app-pending{background:#fef3c7;color:#d97706}
+.badge-app-processing{background:#e0f2fe;color:#0284c7}
+.badge-app-issued{background:#dcfce7;color:#15803d}
+.badge-app-action{background:#fee2e2;color:#dc2626}
+
+/* Priority */
+.priority-high{color:#dc2626;font-weight:600}
+.priority-medium{color:#d97706;font-weight:600}
+.priority-low{color:#15803d;font-weight:600}
+
+/* Actions */
+.crm-actions{
+    display:flex;
+    gap:8px;
+}
+
+.btn-icon{
+    width:34px;
+    height:34px;
+    border-radius:6px;
+    border:none;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    cursor:pointer;
+}
+
+.btn-view{background:#0f766e;color:#fff}
+.btn-contact{background:#16a34a;color:#fff}
+.btn-notes{background:#0284c7;color:#fff}
+
+.tier-legend{
+    font-size:13px;
+}
+
+.tier-legend-item{
+    font-weight:600;
+}
+
+.tier-legend-icon{
+    margin-right:4px;
+}
+
+.tier-legend-vip{color:var(--vip)}
+.tier-legend-gold{color:var(--gold)}
+.tier-legend-silver{color:var(--silver-text)}
+.tier-legend-new{color:var(--new)}
+
+.loyalty-tier-badge{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+}
+
+.tier-badge-icon{
+    font-size:12px;
+    line-height:1;
+    display:inline-flex;
+    width:20px;
+    height:20px;
+    align-items:center;
+    justify-content:center;
+    border-radius:50%;
+    color:#fff;
+    box-shadow:0 4px 10px rgba(2,6,23,0.06);
+}
+
+.tier-badge-icon-vip{color:#6d28d9}
+.tier-badge-icon-vip{background:linear-gradient(135deg,var(--vip),#9c6afe)}
+.tier-badge-icon-gold{background:linear-gradient(135deg,#f59e0b,#fbbf24)}
+.tier-badge-icon-silver{background:linear-gradient(135deg,#f6f9fb 0%, #dfe8ef 40%, #b9c4cd 100%); color:#0f1724; box-shadow:inset 0 2px 6px rgba(255,255,255,0.6)}
+.tier-badge-icon-new{background:linear-gradient(135deg,#0ea5e9,#38bdf8)}
