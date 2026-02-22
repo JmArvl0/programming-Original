@@ -82,7 +82,7 @@ body { background:#f8f9fa; }
     border-radius:12px;
     box-shadow:0 2px 15px rgba(0,0,0,.08);
     /* Allow full content flow without internal scrolling */
-    height: calc(100vh - 250px); /* responsive to screen height */
+    height: calc(100vh - 295px); /* responsive to screen height */
     display: flex;
     flex-direction: column;
     position: relative;

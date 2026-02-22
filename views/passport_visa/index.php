@@ -26,13 +26,13 @@
 
 <div class="table-section">
     <ul class="nav nav-tabs filter-tabs mb-3" id="applicantFilterTabs" role="tablist">
-        <li class="nav-item" role="presentation"><button class="nav-link active" type="button" data-filter="all" role="tab" aria-selected="true">All</button></li>
-        <li class="nav-item" role="presentation"><button class="nav-link" type="button" data-filter="new" role="tab" aria-selected="false">New</button></li>
-        <li class="nav-item" role="presentation"><button class="nav-link" type="button" data-filter="documents-issue" role="tab" aria-selected="false">Documents Issue</button></li>
-        <li class="nav-item" role="presentation"><button class="nav-link" type="button" data-filter="under-processing" role="tab" aria-selected="false">Under Processing</button></li>
-        <li class="nav-item" role="presentation"><button class="nav-link" type="button" data-filter="for-action" role="tab" aria-selected="false">For Action</button></li>
-        <li class="nav-item" role="presentation"><button class="nav-link" type="button" data-filter="approved" role="tab" aria-selected="false">Approved</button></li>
-        <li class="nav-item" role="presentation"><button class="nav-link" type="button" data-filter="completed" role="tab" aria-selected="false">Completed</button></li>
+        <li class="nav-item" role="presentation"><a class="nav-link active" aria-current="page" href="#" data-filter="all" role="tab" aria-selected="true">All</a></li>
+        <li class="nav-item" role="presentation"><a class="nav-link" href="#" data-filter="new" role="tab" aria-selected="false">New</a></li>
+        <li class="nav-item" role="presentation"><a class="nav-link" href="#" data-filter="documents-issue" role="tab" aria-selected="false">Documents Issue</a></li>
+        <li class="nav-item" role="presentation"><a class="nav-link" href="#" data-filter="under-processing" role="tab" aria-selected="false">Under Processing</a></li>
+        <li class="nav-item" role="presentation"><a class="nav-link" href="#" data-filter="for-action" role="tab" aria-selected="false">For Action</a></li>
+        <li class="nav-item" role="presentation"><a class="nav-link" href="#" data-filter="approved" role="tab" aria-selected="false">Approved</a></li>
+        <li class="nav-item" role="presentation"><a class="nav-link" href="#" data-filter="completed" role="tab" aria-selected="false">Completed</a></li>
     </ul>
 
     <div class="table-responsive table-scroll">
