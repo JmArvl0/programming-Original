@@ -84,6 +84,8 @@ input[type="checkbox"] {
 
 .left-controls {
     display:flex;
+    min-width: 300px;
+    max-width: 520px;
     gap:10px;
 }
 
@@ -140,6 +142,78 @@ table th {
     border-radius:14px;
     box-shadow:0 6px 18px rgba(0,0,0,.08);
     overflow:hidden;
+    display:flex;
+    flex-direction:column;
+}
+
+.crm-table-filters{
+    padding: 14px 14px 0;
+}
+
+/* TABS - Match Passport & Visa nav-tabs styling */
+.filter-tabs.nav-tabs {
+    border-bottom: 1px solid #dee2e6;
+    display: flex;
+    flex-wrap: wrap;
+    padding-left: 0;
+    margin-bottom: 1rem;
+    list-style: none;
+}
+
+.filter-tabs.nav-tabs .nav-item {
+    margin-bottom: -1px;
+}
+
+.filter-tabs.nav-tabs .nav-link {
+    display: block;
+    padding: 0.5rem 1rem;
+    color: #0d6efd !important;
+    text-decoration: none;
+    background-color: transparent;
+    border: 1px solid transparent;
+    border-top-left-radius: 0.375rem;
+    border-top-right-radius: 0.375rem;
+    transition: color .15s ease-in-out, background-color .15s ease-in-out, border-color .15s ease-in-out;
+    font-weight: 400;
+    cursor: pointer;
+    margin-right: 2px;
+}
+
+.filter-tabs.nav-tabs .nav-link:hover {
+    border-color: #e9ecef #e9ecef #dee2e6;
+    isolation: isolate;
+    color: #0a58ca !important;
+    background-color: #f8f9fa;
+}
+
+.filter-tabs.nav-tabs .nav-link.active {
+    color: #495057 !important;
+    background-color: #fff !important;
+    border-color:#dee2e6 #dee2e6 #fff;
+    font-weight: 500;
+}
+
+.filter-tabs.nav-tabs .nav-link.disabled {
+    color: rgba(33, 37, 41, 0.5) !important;
+    background-color: transparent;
+    border-color: transparent;
+    pointer-events: none;
+    cursor: default;
+    opacity: 0.6;
+}
+
+.filter-tabs.nav-tabs .nav-link:focus-visible {
+    outline: 0;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+.filter-tabs {
+    flex-wrap: wrap !important;
+    overflow-x: visible !important;
+}
+
+.filter-tabs .nav-link {
+    white-space: nowrap;
 }
 
 /* Sticky toolbar */
@@ -178,10 +252,31 @@ table th {
 .crm-btn-news{background:#fbbf24}
 .crm-btn-export{background:#0ea5e9;color:#fff}
 
-/* Scroll area */
-.crm-table-scroll{
-    max-height:750px;
-    overflow:auto;
+/* Table body and footer behavior - match Passport & Visa pagination layout */
+.table-scroll {
+    flex: 1 1 auto;
+    overflow: hidden;
+}
+
+.crm-table-wrapper table.table {
+    margin-bottom: 0;
+}
+
+.crm-table-wrapper .table-footer {
+    position: sticky;
+    bottom: 0;
+    margin-top: 0;
+    background: #fff;
+    padding: 20px 15px;
+    z-index: 40;
+    box-shadow: 0 -6px 18px rgba(2,6,23,0.04);
+}
+
+.table-footer {
+    position: sticky;
+    bottom: 0;
+    background: #fff;
+    z-index: 10;
 }
 
 /* Sticky header */

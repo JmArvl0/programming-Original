@@ -7,6 +7,7 @@ require_once __DIR__ . '/../includes/auth.php';
 class PassportVisaController extends BaseController
 {
     private PassportVisaModel $passportVisaModel;
+    private const DEFAULT_PER_PAGE = 10;
 
     public function __construct()
     {
@@ -15,16 +16,133 @@ class PassportVisaController extends BaseController
 
     public function index(): void
     {
-        $applicants = $this->passportVisaModel->getApplicants();
+        if (isset($_GET['ajax']) && $_GET['ajax'] !== '') {
+            $this->handleAjax((string) $_GET['ajax']);
+            return;
+        }
 
-        $this->render('passport_visa/index', [
+        $page = isset($_GET['page']) ? (int) $_GET['page'] : 1;
+        $perPage = isset($_GET['per_page']) ? (int) $_GET['per_page'] : self::DEFAULT_PER_PAGE;
+        $filter = isset($_GET['filter']) ? strtolower(trim((string) $_GET['filter'])) : 'all';
+        $search = isset($_GET['q']) ? trim((string) $_GET['q']) : '';
+        $allowedFilters = ['all', 'new', 'documents-issue', 'under-processing', 'for-action', 'approved', 'completed'];
+        if (!in_array($filter, $allowedFilters, true)) {
+            $filter = 'all';
+        }
+
+        $pageData = $this->passportVisaModel->getApplicantsPage($page, $perPage, $filter, $search);
+        $applicants = array_map([$this, 'prepareApplicantForView'], $pageData['items']);
+        $stats = $this->passportVisaModel->buildStats($pageData['allFiltered']);
+
+        $pagination = $this->buildPaginationData(
+            $pageData['page'],
+            $pageData['perPage'],
+            $pageData['totalItems'],
+            $pageData['totalPages'],
+            $pageData['offset']
+        );
+
+        $this->render('passport/applicant_list.view', [
             'pageTitle' => 'Passport & Visa',
             'pageSubtitle' => 'Manage Passport & Visa Processing',
             'applicants' => $applicants,
-            'stats' => $this->passportVisaModel->buildStats($applicants)
+            'stats' => $stats,
+            'pagination' => $pagination,
+            'selectedFilter' => $filter,
+            'searchTerm' => $search,
+            'perPage' => $pageData['perPage']
         ], [
             'styles' => ['css/passport-visa.css'],
             'scripts' => ['js/passport-visa.js']
         ]);
+    }
+
+    private function normalizeStatus(string $value): string
+    {
+        return strtolower(trim($value));
+    }
+
+    private function badgeClassForStatus(string $value): string
+    {
+        $map = [
+            'approved' => 'bg-success',
+            'submitted' => 'bg-primary',
+            'processing' => 'bg-info text-dark',
+            'under review' => 'bg-warning text-dark',
+            'missing' => 'bg-warning text-dark',
+            'pending' => 'bg-secondary',
+            'rejected' => 'bg-danger',
+            'action required' => 'bg-danger',
+            'not started' => 'bg-light text-dark border',
+            'visa issued' => 'bg-success'
+        ];
+
+        return $map[$this->normalizeStatus($value)] ?? 'bg-secondary';
+    }
+
+    private function prepareApplicantForView(array $applicant): array
+    {
+        $documentsText = (string) ($applicant['documents']['text'] ?? '');
+        $applicationText = (string) ($applicant['application']['text'] ?? '');
+        $priority = (string) ($applicant['priority'] ?? 'Low');
+
+        return $applicant + [
+            'documentsNormalized' => $this->normalizeStatus($documentsText),
+            'applicationNormalized' => $this->normalizeStatus($applicationText),
+            'documentsBadgeClass' => $this->badgeClassForStatus($documentsText),
+            'applicationBadgeClass' => $this->badgeClassForStatus($applicationText),
+            'priorityClass' => 'priority-' . strtolower($priority)
+        ];
+    }
+
+    private function buildPaginationData(int $page, int $perPage, int $totalItems, int $totalPages, int $offset): array
+    {
+        $start = $totalItems === 0 ? 0 : $offset + 1;
+        $end = $totalItems === 0 ? 0 : min($offset + $perPage, $totalItems);
+
+        return [
+            'page' => $page,
+            'perPage' => $perPage,
+            'totalItems' => $totalItems,
+            'totalPages' => $totalPages,
+            'start' => $start,
+            'end' => $end
+        ];
+    }
+
+    private function handleAjax(string $action): void
+    {
+        switch ($action) {
+            case 'upload-document':
+                $this->jsonResponse([
+                    'ok' => true,
+                    'action' => 'upload-document',
+                    'message' => 'Upload endpoint ready for integration.'
+                ]);
+                return;
+
+            case 'update-status':
+                $this->jsonResponse([
+                    'ok' => true,
+                    'action' => 'update-status',
+                    'message' => 'Status update endpoint ready for integration.'
+                ]);
+                return;
+
+            case 'send-reminder':
+                $this->jsonResponse([
+                    'ok' => true,
+                    'action' => 'send-reminder',
+                    'message' => 'Reminder endpoint ready for integration.'
+                ]);
+                return;
+
+            default:
+                $this->jsonResponse([
+                    'ok' => false,
+                    'message' => 'Unsupported AJAX action.'
+                ], 400);
+                return;
+        }
     }
 }

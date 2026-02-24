@@ -1,5 +1,53 @@
-document.addEventListener('DOMContentLoaded', function() {
-    // Make tables responsive
+document.addEventListener('DOMContentLoaded', function () {
+    const moduleViewOptions = document.querySelectorAll('.module-view-option');
+    if (moduleViewOptions.length > 0) {
+        moduleViewOptions.forEach((option) => {
+            option.addEventListener('click', function (event) {
+                event.preventDefault();
+                const form = this.closest('form');
+                const selectedView = this.getAttribute('data-view') || 'reservation_requests';
+                const url = new URL(window.location.href);
+
+                url.searchParams.set('view', selectedView);
+
+                if (form) {
+                    const searchInput = form.querySelector('input[name="search"]');
+                    if (searchInput) {
+                        const searchValue = searchInput.value.trim();
+                        if (searchValue) {
+                            url.searchParams.set('search', searchValue);
+                        } else {
+                            url.searchParams.delete('search');
+                        }
+                    }
+                }
+
+                window.location.href = url.toString();
+            });
+        });
+    }
+
+    const moduleViewDropdown = document.getElementById('moduleViewDropdown');
+    if (moduleViewDropdown) {
+        moduleViewDropdown.addEventListener('click', function (event) {
+            if (typeof bootstrap === 'undefined') {
+                event.preventDefault();
+            }
+        });
+    }
+
+    const facilitiesSearchInput = document.querySelector('.facilities-search-wrap .search-input');
+    if (facilitiesSearchInput) {
+        facilitiesSearchInput.addEventListener('keypress', function (event) {
+            if (event.key === 'Enter') {
+                const form = this.closest('form');
+                if (form) {
+                    form.submit();
+                }
+            }
+        });
+    }
+
     function handleTableResponsive() {
         const tableWrappers = document.querySelectorAll('.table-wrapper');
         tableWrappers.forEach(wrapper => {
@@ -10,86 +58,19 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
-    
+
     handleTableResponsive();
     window.addEventListener('resize', handleTableResponsive);
-    
-    // Add hover effects to map cells
-    const mapCells = document.querySelectorAll('.map-cell:not(:empty)');
-    mapCells.forEach(cell => {
-        cell.addEventListener('mouseenter', function() {
-            const type = this.classList.contains('transport') ? 'Transport' : 
-                        this.classList.contains('staff') ? 'Staff' : 'Lounge';
-            const count = this.querySelector('span:last-child')?.textContent || '1';
-            this.setAttribute('title', `${type} Unit (${count})`);
-        });
-    });
 });
 
-// Action functions
-function viewLiveMap() {
-    alert('Opening detailed live map view...');
-    // window.location.href = 'live_map.php';
+function viewReservationRequest(id) {
+    alert(`Viewing reservation request details for ID: ${id}`);
 }
 
-function viewService(id) {
-    alert(`Viewing service details for ID: ${id}`);
-    // window.location.href = `service_details.php?id=${id}`;
+function updateReservationStatus(id) {
+    alert(`Updating reservation request status for ID: ${id}`);
 }
 
-function updateService(id) {
-    alert(`Updating service for ID: ${id}`);
-    // Open modal for updating service status
+function addReservationRequest() {
+    alert('Adding new facility reservation request...');
 }
-
-function addNewService() {
-    alert('Adding new service request...');
-    // window.location.href = 'service_create.php';
-}
-
-function viewAsset(id) {
-    alert(`Viewing asset details for ID: ${id}`);
-    // window.location.href = `asset_details.php?id=${id}`;
-}
-
-function trackAsset(id) {
-    alert(`Tracking asset location for ID: ${id}`);
-    // window.location.href = `asset_track.php?id=${id}`;
-}
-
-function updateMaintenance(id) {
-    alert(`Updating maintenance for asset ID: ${id}`);
-    // Open maintenance update modal
-}
-
-function reserveAsset(id) {
-    alert(`Reserving asset ID: ${id}`);
-    // Open reservation form modal
-}
-
-function addNewAsset() {
-    alert('Adding new asset to inventory...');
-    // window.location.href = 'asset_create.php';
-}
-
-function exportAssets() {
-    alert('Exporting asset data...\nThis would generate a CSV file with all asset information.');
-    // window.location.href = 'export_assets.php';
-}
-
-function scheduleMaintenance() {
-    alert('Opening maintenance scheduling...');
-    // window.location.href = 'maintenance_schedule.php';
-}
-
-// Animate progress bars on load
-window.addEventListener('load', function() {
-    const progressBars = document.querySelectorAll('.progress-fill');
-    progressBars.forEach(bar => {
-        const originalWidth = bar.style.width;
-        bar.style.width = '0';
-        setTimeout(() => {
-            bar.style.width = originalWidth;
-        }, 100);
-    });
-});

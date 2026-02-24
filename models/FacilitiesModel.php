@@ -4,242 +4,352 @@ class FacilitiesModel
 {
     public function getPageData(array $query): array
     {
-        $assets = [];
-        for ($i = 0; $i < 25; $i++) {
-            $assets[] = $this->generateRandomAsset($i);
+        $allowedViews = ['reservation_requests', 'availability_overview', 'coordination_status'];
+        $selectedView = isset($query['view']) ? (string) $query['view'] : 'reservation_requests';
+        $page = isset($query['page']) ? (int) $query['page'] : 1;
+        $perPage = 10;
+        if (!in_array($selectedView, $allowedViews, true)) {
+            $selectedView = 'reservation_requests';
         }
 
-        $services = [];
-        for ($i = 0; $i < 20; $i++) {
-            $services[] = $this->generateRandomService($i);
+        $reservationRequests = [];
+        for ($i = 0; $i < 22; $i++) {
+            $reservationRequests[] = $this->generateReservationRequest($i + 1);
+        }
+
+        $facilityAvailability = [];
+        for ($i = 0; $i < 12; $i++) {
+            $facilityAvailability[] = $this->generateFacilityAvailability($i + 1);
+        }
+
+        $coordinationStatuses = [];
+        for ($i = 0; $i < 16; $i++) {
+            $coordinationStatuses[] = $this->generateCoordinationStatus($i + 1);
         }
 
         $filterType = isset($query['type']) ? (string) $query['type'] : 'all';
-        $filterStatus = isset($query['status']) ? (string) $query['status'] : 'all';
         $searchTerm = isset($query['search']) ? trim((string) $query['search']) : '';
 
         if ($filterType !== 'all') {
-            $assets = array_values(array_filter($assets, static function (array $asset) use ($filterType): bool {
-                return $asset['type'] === $filterType;
-            }));
-        }
+            $reservationRequests = array_values(array_filter(
+                $reservationRequests,
+                static function (array $request) use ($filterType): bool {
+                    return $request['facilityType'] === $filterType;
+                }
+            ));
 
-        if ($filterStatus !== 'all') {
-            $assets = array_values(array_filter($assets, static function (array $asset) use ($filterStatus): bool {
-                return $asset['status']['name'] === $filterStatus;
-            }));
+            $facilityAvailability = array_values(array_filter(
+                $facilityAvailability,
+                static function (array $facility) use ($filterType): bool {
+                    return $facility['type'] === $filterType;
+                }
+            ));
+
+            $coordinationStatuses = array_values(array_filter(
+                $coordinationStatuses,
+                static function (array $coordination) use ($filterType): bool {
+                    return $coordination['facilityType'] === $filterType;
+                }
+            ));
         }
 
         if ($searchTerm !== '') {
-            $assets = array_values(array_filter($assets, static function (array $asset) use ($searchTerm): bool {
-                return stripos($asset['name'], $searchTerm) !== false || stripos($asset['location'], $searchTerm) !== false;
-            }));
-            $services = array_values(array_filter($services, static function (array $service) use ($searchTerm): bool {
-                return stripos($service['customerName'], $searchTerm) !== false || stripos($service['service'], $searchTerm) !== false;
-            }));
+            $reservationRequests = array_values(array_filter(
+                $reservationRequests,
+                static function (array $request) use ($searchTerm): bool {
+                    return stripos($request['customerName'], $searchTerm) !== false
+                        || stripos($request['bookingReference'], $searchTerm) !== false
+                        || stripos($request['facilityType'], $searchTerm) !== false;
+                }
+            ));
+
+            $facilityAvailability = array_values(array_filter(
+                $facilityAvailability,
+                static function (array $facility) use ($searchTerm): bool {
+                    return stripos($facility['facilityName'], $searchTerm) !== false
+                        || stripos($facility['type'], $searchTerm) !== false;
+                }
+            ));
+
+            $coordinationStatuses = array_values(array_filter(
+                $coordinationStatuses,
+                static function (array $coordination) use ($searchTerm): bool {
+                    return stripos($coordination['customerName'], $searchTerm) !== false
+                        || stripos($coordination['facility'], $searchTerm) !== false
+                        || stripos($coordination['assignedStaff'], $searchTerm) !== false;
+                }
+            ));
         }
 
-        $assetTypes = array_values(array_unique(array_column($assets, 'type')));
-        $statusTypes = array_values(array_unique(array_map(static function (array $asset): string {
-            return $asset['status']['name'];
-        }, $assets)));
+        $facilityTypes = $this->extractFacilityTypes($reservationRequests, $facilityAvailability);
+        $stats = $this->buildStats($reservationRequests);
+        $overviewCards = $this->buildOverviewCards(
+            $selectedView,
+            $reservationRequests,
+            $facilityAvailability,
+            $coordinationStatuses
+        );
+
+        $activeItemsCount = count($reservationRequests);
+        if ($selectedView === 'availability_overview') {
+            $activeItemsCount = count($facilityAvailability);
+        } elseif ($selectedView === 'coordination_status') {
+            $activeItemsCount = count($coordinationStatuses);
+        }
+
+        $totalPages = max(1, (int) ceil($activeItemsCount / $perPage));
+        $safePage = max(1, min($page, $totalPages));
+        $offset = ($safePage - 1) * $perPage;
+
+        if ($selectedView === 'availability_overview') {
+            $facilityAvailability = array_slice($facilityAvailability, $offset, $perPage);
+        } elseif ($selectedView === 'coordination_status') {
+            $coordinationStatuses = array_slice($coordinationStatuses, $offset, $perPage);
+        } else {
+            $reservationRequests = array_slice($reservationRequests, $offset, $perPage);
+        }
+
+        $start = $activeItemsCount > 0 ? $offset + 1 : 0;
+        $end = $activeItemsCount > 0 ? min($offset + $perPage, $activeItemsCount) : 0;
 
         return [
-            'assets' => $assets,
-            'services' => $services,
+            'reservationRequests' => $reservationRequests,
+            'facilityAvailability' => $facilityAvailability,
+            'coordinationStatuses' => $coordinationStatuses,
+            'selectedView' => $selectedView,
             'filterType' => $filterType,
-            'filterStatus' => $filterStatus,
             'searchTerm' => $searchTerm,
-            'assetTypes' => $assetTypes,
-            'statusTypes' => $statusTypes,
-            'stats' => $this->buildStats($assets, $services),
-            'mapCells' => $this->buildMapCells()
+            'facilityTypes' => $facilityTypes,
+            'stats' => $stats,
+            'overviewCards' => $overviewCards,
+            'pagination' => [
+                'page' => $safePage,
+                'perPage' => $perPage,
+                'totalItems' => $activeItemsCount,
+                'totalPages' => $totalPages,
+                'start' => $start,
+                'end' => $end
+            ]
         ];
     }
 
-    private function buildStats(array $assets, array $services): array
+    private function buildStats(array $reservationRequests): array
     {
         $stats = [
-            'totalCapacity' => 0,
-            'activeShuttles' => 0,
-            'totalShuttles' => 0,
-            'loungeOccupancy' => 0,
-            'loungeCapacity' => 0,
-            'maintenanceCount' => 0,
-            'totalAssets' => count($assets),
-            'availableAssets' => 0,
-            'inUseAssets' => 0,
-            'totalServices' => count($services),
-            'activeServices' => 0
+            'totalReservationsToday' => count($reservationRequests),
+            'pendingRequests' => 0,
+            'approved' => 0,
+            'inProgress' => 0,
+            'completed' => 0
         ];
 
-        foreach ($assets as $asset) {
-            if ($asset['type'] === 'Transport') {
-                $stats['totalShuttles']++;
-                if ($asset['status']['name'] !== 'Maintenance') {
-                    $stats['activeShuttles']++;
-                }
-                $stats['totalCapacity'] += $asset['capacity'];
-            }
-
-            if ($asset['type'] === 'Lounge') {
-                $stats['loungeCapacity'] += $asset['capacity'];
-                $stats['loungeOccupancy'] += $asset['current'];
-            }
-
-            if ($asset['status']['name'] === 'Maintenance') {
-                $stats['maintenanceCount']++;
-            }
-
-            if ($asset['current'] > 0) {
-                $stats['inUseAssets']++;
-            } else {
-                $stats['availableAssets']++;
+        foreach ($reservationRequests as $request) {
+            switch ($request['status']) {
+                case 'Requested':
+                    $stats['pendingRequests']++;
+                    break;
+                case 'Approved':
+                    $stats['approved']++;
+                    break;
+                case 'In Progress':
+                    $stats['inProgress']++;
+                    break;
+                case 'Completed':
+                    $stats['completed']++;
+                    break;
             }
         }
-
-        foreach ($services as $service) {
-            if (in_array($service['status']['name'], ['Active', 'Ongoing'], true)) {
-                $stats['activeServices']++;
-            }
-        }
-
-        $stats['capacityUsage'] = $stats['totalShuttles'] > 0
-            ? round(($stats['activeShuttles'] / $stats['totalShuttles']) * 100)
-            : 0;
-        $stats['loungeUsage'] = $stats['loungeCapacity'] > 0
-            ? round(($stats['loungeOccupancy'] / $stats['loungeCapacity']) * 100)
-            : 0;
 
         return $stats;
     }
 
-    private function buildMapCells(): array
-    {
-        $cells = [];
-        for ($i = 0; $i < 16; $i++) {
-            $rand = rand(1, 10);
-            if ($rand <= 3) {
-                $cells[] = ['type' => 'transport', 'icon' => 'CAR', 'count' => rand(1, 3)];
-            } elseif ($rand <= 6) {
-                $cells[] = ['type' => 'staff', 'icon' => 'STAFF', 'count' => rand(1, 5)];
-            } elseif ($rand <= 8) {
-                $cells[] = ['type' => 'lounge', 'icon' => 'LOUNGE', 'count' => rand(1, 2)];
-            } else {
-                $cells[] = ['type' => 'empty', 'icon' => '', 'count' => 0];
+    private function buildOverviewCards(
+        string $selectedView,
+        array $reservationRequests,
+        array $facilityAvailability,
+        array $coordinationStatuses
+    ): array {
+        if ($selectedView === 'availability_overview') {
+            $totalFacilities = count($facilityAvailability);
+            $available = 0;
+            $limited = 0;
+            $full = 0;
+            $totalCapacity = 0;
+            $totalReserved = 0;
+
+            foreach ($facilityAvailability as $facility) {
+                $statusName = strtolower((string) ($facility['status']['name'] ?? ''));
+                $totalCapacity += (int) ($facility['capacity'] ?? 0);
+                $totalReserved += (int) ($facility['reservedToday'] ?? 0);
+                if ($statusName === 'available') {
+                    $available++;
+                } elseif ($statusName === 'limited') {
+                    $limited++;
+                } elseif ($statusName === 'full') {
+                    $full++;
+                }
             }
+
+            $totalSlotsLeft = max(0, $totalCapacity - $totalReserved);
+
+            return [
+                ['label' => 'Total Facilities', 'value' => $totalFacilities, 'metaLeft' => 'Overview', 'metaRight' => 'Today', 'icon' => 'fa-building'],
+                ['label' => 'Available', 'value' => $available, 'metaLeft' => 'Status', 'metaRight' => 'Available', 'icon' => 'fa-check-circle'],
+                ['label' => 'Limited', 'value' => $limited, 'metaLeft' => 'Status', 'metaRight' => 'Limited', 'icon' => 'fa-exclamation-triangle'],
+                ['label' => 'Full', 'value' => $full, 'metaLeft' => 'Status', 'metaRight' => 'Full', 'icon' => 'fa-ban'],
+                ['label' => 'Open Slots', 'value' => $totalSlotsLeft, 'metaLeft' => 'Capacity', 'metaRight' => 'Remaining', 'icon' => 'fa-layer-group']
+            ];
         }
 
-        return $cells;
+        if ($selectedView === 'coordination_status') {
+            $statusCounts = [
+                'queued' => 0,
+                'dispatched' => 0,
+                'en route' => 0,
+                'arrived' => 0,
+                'completed' => 0
+            ];
+
+            foreach ($coordinationStatuses as $coordination) {
+                $status = strtolower(trim((string) ($coordination['logisticsStatus'] ?? '')));
+                if (array_key_exists($status, $statusCounts)) {
+                    $statusCounts[$status]++;
+                }
+            }
+
+            $activeOps = $statusCounts['queued'] + $statusCounts['dispatched'] + $statusCounts['en route'];
+
+            return [
+                ['label' => 'Total Coordination', 'value' => count($coordinationStatuses), 'metaLeft' => 'Logistics', 'metaRight' => 'Feed', 'icon' => 'fa-link'],
+                ['label' => 'Active Ops', 'value' => $activeOps, 'metaLeft' => 'Status', 'metaRight' => 'In Motion', 'icon' => 'fa-truck-fast'],
+                ['label' => 'Arrived', 'value' => $statusCounts['arrived'], 'metaLeft' => 'Status', 'metaRight' => 'Arrived', 'icon' => 'fa-map-pin'],
+                ['label' => 'Completed', 'value' => $statusCounts['completed'], 'metaLeft' => 'Status', 'metaRight' => 'Completed', 'icon' => 'fa-flag-checkered'],
+                ['label' => 'Queued', 'value' => $statusCounts['queued'], 'metaLeft' => 'Status', 'metaRight' => 'Queued', 'icon' => 'fa-clock']
+            ];
+        }
+
+        $reservationStats = $this->buildStats($reservationRequests);
+
+        return [
+            ['label' => 'Total Reservations Today', 'value' => (int) $reservationStats['totalReservationsToday'], 'metaLeft' => 'Core 2 service scope', 'metaRight' => 'Today', 'icon' => 'fa-calendar-check'],
+            ['label' => 'Pending Requests', 'value' => (int) $reservationStats['pendingRequests'], 'metaLeft' => 'Status', 'metaRight' => 'Requested', 'icon' => 'fa-hourglass-half'],
+            ['label' => 'Approved', 'value' => (int) $reservationStats['approved'], 'metaLeft' => 'Status', 'metaRight' => 'Approved', 'icon' => 'fa-check-circle'],
+            ['label' => 'In Progress', 'value' => (int) $reservationStats['inProgress'], 'metaLeft' => 'Status', 'metaRight' => 'In Progress', 'icon' => 'fa-spinner'],
+            ['label' => 'Completed', 'value' => (int) $reservationStats['completed'], 'metaLeft' => 'Status', 'metaRight' => 'Completed', 'icon' => 'fa-flag-checkered']
+        ];
     }
 
-    private function generateRandomAsset(int $index): array
+    private function extractFacilityTypes(array $reservationRequests, array $facilityAvailability): array
     {
-        $assetTypes = [
-            ['type' => 'Transport', 'subtypes' => ['Shuttle Van', 'Shuttle Bus', 'Luxury Van', 'Executive Car']],
-            ['type' => 'Lounge', 'subtypes' => ['VIP Lounge', 'Business Lounge', 'Economy Lounge', 'Conference Room']],
-            ['type' => 'Equipment', 'subtypes' => ['Luggage Cart', 'Check-in Counter', 'Security Scanner', 'Waiting Chair']],
-            ['type' => 'Staff', 'subtypes' => ['Driver', 'Porter', 'Receptionist', 'Security']]
-        ];
+        $types = [];
 
-        $locations = [
-            'NAIA Terminal 1', 'NAIA Terminal 2', 'NAIA Terminal 3', 'Clark International Airport',
-            'Mactan-Cebu Airport', 'Davao Airport', 'Makati Office', 'BGC Office', 'Quezon City Office',
-            'Caloocan City', 'Pasay City', 'Paranaque City', 'Taguig City'
-        ];
-
-        $statuses = [
-            ['name' => 'Active', 'color' => 'green', 'icon' => 'O'],
-            ['name' => 'In Transit', 'color' => 'blue', 'icon' => '<>'],
-            ['name' => 'Loading', 'color' => 'yellow', 'icon' => '...'],
-            ['name' => 'Maintenance', 'color' => 'red', 'icon' => 'M'],
-            ['name' => 'Available', 'color' => 'green', 'icon' => 'OK'],
-            ['name' => 'Occupied', 'color' => 'red', 'icon' => 'X'],
-            ['name' => 'Reserved', 'color' => 'blue', 'icon' => 'R']
-        ];
-
-        $assetType = $assetTypes[array_rand($assetTypes)];
-        $assetSubtype = $assetType['subtypes'][array_rand($assetType['subtypes'])];
-
-        if ($assetType['type'] === 'Transport') {
-            $capacity = rand(3, 20);
-            $current = rand(0, $capacity);
-        } elseif ($assetType['type'] === 'Lounge') {
-            $capacity = rand(20, 100);
-            $current = rand(0, $capacity);
-        } else {
-            $capacity = 1;
-            $current = rand(0, 1);
+        foreach ($reservationRequests as $request) {
+            $types[] = $request['facilityType'];
         }
 
-        $usagePercent = ($current / $capacity) * 100;
-        if ($assetType['type'] === 'Transport') {
-            if ($usagePercent >= 90) {
-                $status = $statuses[5];
-            } elseif ($usagePercent >= 50) {
-                $status = $statuses[2];
-            } elseif ($usagePercent > 0) {
-                $status = $statuses[1];
-            } elseif (rand(0, 10) === 0) {
-                $status = $statuses[3];
-            } else {
-                $status = $statuses[0];
-            }
+        foreach ($facilityAvailability as $facility) {
+            $types[] = $facility['type'];
+        }
+
+        $types = array_values(array_unique($types));
+        sort($types);
+
+        return $types;
+    }
+
+    private function generateReservationRequest(int $id): array
+    {
+        $customers = [
+            'Vanessa Radaza', 'Erick Taguba', 'Rens Solano', 'Maria Alvares', 'Joseph De Guzman',
+            'Mark Villotes', 'James Cruz', 'Sarah Dela Cruz', 'Michael Santos', 'Jennifer Reyes'
+        ];
+
+        $facilityTypes = ['Lounge', 'Assistance', 'VIP', 'Meet and Greet', 'Wheelchair', 'Porter Service'];
+        $priorities = ['Low', 'Normal', 'High'];
+        $statuses = ['Requested', 'Approved', 'Assigned', 'In Progress', 'Completed'];
+
+        $facilityType = $facilityTypes[array_rand($facilityTypes)];
+        $status = $statuses[array_rand($statuses)];
+
+        return [
+            'id' => $id,
+            'customerName' => $customers[array_rand($customers)],
+            'bookingReference' => 'BK-' . date('ym') . '-' . str_pad((string) rand(1000, 9999), 4, '0', STR_PAD_LEFT),
+            'facilityType' => $facilityType,
+            'date' => date('Y-m-d', strtotime('+' . rand(0, 4) . ' days')),
+            'priority' => $priorities[array_rand($priorities)],
+            'status' => $status
+        ];
+    }
+
+    private function generateFacilityAvailability(int $id): array
+    {
+        $types = ['Lounge', 'Assistance', 'VIP', 'Meet and Greet', 'Wheelchair', 'Porter Service'];
+        $facilityByType = [
+            'Lounge' => ['Business Lounge A', 'Premium Lounge B', 'Family Lounge C'],
+            'Assistance' => ['Arrival Assistance Desk', 'Departure Assistance Hub'],
+            'VIP' => ['VIP Holding Room 1', 'VIP Reception Suite'],
+            'Meet and Greet' => ['Terminal 1 Welcome Counter', 'Terminal 3 Greeter Bay'],
+            'Wheelchair' => ['Wheelchair Service Pool A', 'Wheelchair Service Pool B'],
+            'Porter Service' => ['Porter Group Alpha', 'Porter Group Bravo']
+        ];
+
+        $type = $types[array_rand($types)];
+        $capacity = rand(8, 60);
+        $reservedToday = rand(0, $capacity);
+        $availableSlots = max(0, $capacity - $reservedToday);
+
+        if ($availableSlots === 0) {
+            $status = ['name' => 'Full', 'color' => 'red'];
+        } elseif ($availableSlots <= (int) round($capacity * 0.25)) {
+            $status = ['name' => 'Limited', 'color' => 'yellow'];
         } else {
-            if ($usagePercent >= 90) {
-                $status = $statuses[5];
-            } elseif ($usagePercent >= 50) {
-                $status = $statuses[6];
-            } elseif ($current > 0) {
-                $status = $statuses[4];
-            } else {
-                $status = $statuses[0];
-            }
+            $status = ['name' => 'Available', 'color' => 'green'];
         }
 
         return [
-            'id' => $index + 1,
-            'name' => $assetSubtype . ' #' . str_pad((string) ($index + 1), 2, '0', STR_PAD_LEFT),
-            'type' => $assetType['type'],
-            'subtype' => $assetSubtype,
+            'id' => $id,
+            'facilityName' => $facilityByType[$type][array_rand($facilityByType[$type])],
+            'type' => $type,
             'capacity' => $capacity,
-            'current' => $current,
-            'usagePercent' => $usagePercent,
-            'location' => $locations[array_rand($locations)],
-            'status' => $status,
-            'lastMaintenance' => date('Y-m-d', strtotime('-' . rand(0, 180) . ' days')),
-            'nextMaintenance' => date('Y-m-d', strtotime('+' . rand(30, 365) . ' days')),
-            'assignedStaff' => rand(1, 5),
-            'fuelLevel' => $assetType['type'] === 'Transport' ? rand(20, 100) : null,
-            'reservations' => rand(0, 10)
+            'reservedToday' => $reservedToday,
+            'availableSlots' => $availableSlots,
+            'status' => $status
         ];
     }
 
-    private function generateRandomService(int $index): array
+    private function generateCoordinationStatus(int $id): array
     {
-        $services = ['Baggage Assist', 'Priority Check In', 'Meet & Greet', 'Concierge', 'Security Escort', 'Luggage Storage'];
-        $staffFirstNames = ['John', 'Jane', 'Robert', 'Mary', 'Michael', 'Sarah', 'David', 'Emily', 'James', 'Jennifer'];
-        $staffLastNames = ['Smith', 'Johnson', 'Williams', 'Jones', 'Brown', 'Davis', 'Miller', 'Wilson', 'Moore', 'Taylor'];
-        $customerFirstNames = ['Vanessa', 'Erick', 'Rens', 'Maria', 'Joseph', 'Mark', 'James', 'Sarah', 'Michael', 'Jennifer'];
-        $customerLastNames = ['Radaza', 'Taguba', 'Solano', 'Alvares', 'De Guzman', 'Villotes', 'Cruz', 'Dela Cruz', 'Santos', 'Reyes'];
-
-        $serviceStatuses = [
-            ['name' => 'Active', 'color' => 'green'],
-            ['name' => 'Ongoing', 'color' => 'yellow'],
-            ['name' => 'Waiting', 'color' => 'blue'],
-            ['name' => 'Completed', 'color' => 'gray']
+        $customers = [
+            'Vanessa Radaza', 'Erick Taguba', 'Rens Solano', 'Maria Alvares', 'Joseph De Guzman',
+            'Mark Villotes', 'James Cruz', 'Sarah Dela Cruz', 'Michael Santos', 'Jennifer Reyes'
         ];
 
+        $facilityEntries = [
+            ['facilityType' => 'Lounge', 'facility' => 'Business Lounge A'],
+            ['facilityType' => 'Assistance', 'facility' => 'Arrival Assistance Desk'],
+            ['facilityType' => 'VIP', 'facility' => 'VIP Holding Room 1'],
+            ['facilityType' => 'Meet and Greet', 'facility' => 'Terminal 3 Greeter Bay'],
+            ['facilityType' => 'Wheelchair', 'facility' => 'Wheelchair Service Pool A'],
+            ['facilityType' => 'Porter Service', 'facility' => 'Porter Group Alpha']
+        ];
+
+        $staffNames = [
+            'John Smith', 'Jane Johnson', 'Robert Williams', 'Mary Jones', 'Michael Brown',
+            'Sarah Davis', 'David Miller', 'Emily Wilson', 'James Moore', 'Jennifer Taylor'
+        ];
+
+        $logisticsStatuses = ['Queued', 'Dispatched', 'En Route', 'Arrived', 'Completed'];
+        $selectedFacility = $facilityEntries[array_rand($facilityEntries)];
+
         return [
-            'id' => $index + 1,
-            'customerName' => $customerFirstNames[array_rand($customerFirstNames)] . ' ' . $customerLastNames[array_rand($customerLastNames)],
-            'service' => $services[array_rand($services)],
-            'staffOnDuty' => $staffFirstNames[array_rand($staffFirstNames)] . ' ' . $staffLastNames[array_rand($staffLastNames)],
-            'status' => $serviceStatuses[array_rand($serviceStatuses)],
-            'startTime' => date('H:i', strtotime('-' . rand(0, 120) . ' minutes')),
-            'duration' => rand(15, 180) . ' min',
-            'location' => rand(0, 1) ? 'Terminal ' . rand(1, 3) : 'Ground Floor',
-            'priority' => rand(1, 10) > 7 ? 'High' : 'Normal'
+            'id' => $id,
+            'customerName' => $customers[array_rand($customers)],
+            'facilityType' => $selectedFacility['facilityType'],
+            'facility' => $selectedFacility['facility'],
+            'assignedStaff' => $staffNames[array_rand($staffNames)],
+            'logisticsStatus' => $logisticsStatuses[array_rand($logisticsStatuses)],
+            'completionTime' => rand(0, 1) ? date('H:i', strtotime('+' . rand(15, 180) . ' minutes')) : 'Pending'
         ];
     }
 }

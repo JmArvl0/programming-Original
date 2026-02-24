@@ -74,9 +74,11 @@ class ScheduleRatesModel
             'July', 'August', 'September', 'October', 'November', 'December'
         ];
         $currentMonth = in_array($selectedMonth, $validMonths, true) ? $selectedMonth : date('F');
-        $currentYear = (is_numeric($selectedYear) && (int) $selectedYear >= 2024 && (int) $selectedYear <= 2026)
+        $systemYear = (int) date('Y');
+        $yearOptions = range($systemYear - 2, $systemYear + 3);
+        $currentYear = (is_numeric($selectedYear) && in_array((int) $selectedYear, $yearOptions, true))
             ? (int) $selectedYear
-            : (int) date('Y');
+            : $systemYear;
         $todayMonth = date('F');
         $todayYear = (int) date('Y');
         $todayDay = (int) date('j');
@@ -152,8 +154,27 @@ class ScheduleRatesModel
                 : 0
         ];
 
+        $rateTours = array_map(function (array $tour): array {
+            $capacity = max((int) ($tour['capacity'] ?? 0), 1);
+            $available = max((int) ($tour['available'] ?? 0), 0);
+            $booked = max((int) ($tour['booked'] ?? 0), 0);
+            if ($available === 0) {
+                $availabilityColor = 'var(--danger-color)';
+            } elseif ($available < 5) {
+                $availabilityColor = 'var(--warning-color)';
+            } else {
+                $availabilityColor = 'var(--success-color)';
+            }
+
+            return $tour + [
+                'progressPercent' => ($booked / $capacity) * 100,
+                'availabilityColor' => $availabilityColor
+            ];
+        }, $tours);
+
         return [
             'tours' => $tours,
+            'rateTours' => $rateTours,
             'guests' => $guests,
             'selectedPurpose' => $selectedPurpose,
             'selectedMonth' => $selectedMonth,
@@ -162,6 +183,7 @@ class ScheduleRatesModel
             'selectedDayParam' => $selectedDayParam,
             'destinations' => $destinations,
             'validMonths' => $validMonths,
+            'yearOptions' => $yearOptions,
             'currentMonth' => $currentMonth,
             'currentYear' => $currentYear,
             'todayMonth' => $todayMonth,

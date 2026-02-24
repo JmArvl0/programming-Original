@@ -341,6 +341,11 @@
     overflow: hidden;
 }
 
+.widget:hover {
+    transform: none;
+    box-shadow: 0 2px 15px rgba(0,0,0,0.08);
+}
+
 .widget-title {
     font-weight: 600;
     color: #333;

@@ -2,26 +2,42 @@
 
 class CrmModel
 {
-    public function getStats(): array
+    private const DEFAULT_TOTAL_CUSTOMERS = 250;
+    private const RATING = 4.8;
+    private static ?array $customersCache = null;
+    private static ?array $statsCache = null;
+
+    private function cacheFetch(string $key): ?array
     {
-        return [
-            'total' => 50,
-            'activePercent' => 62,
-            'active' => 31,
-            'vip' => 14,
-            'gold' => 16,
-            'silver' => 13,
-            'new' => 7,
-            'rating' => 5.8,
-            'revenue' => 5571161,
-            'avgLifetime' => 111423,
-            'avgTrips' => 12.5,
-            'followups' => 32
-        ];
+        if (function_exists('apcu_fetch') && ini_get('apc.enabled')) {
+            $success = false;
+            $value = apcu_fetch($key, $success);
+            if ($success && is_array($value)) {
+                return $value;
+            }
+        }
+        return null;
     }
 
-    public function getCustomers(int $count = 30): array
+    private function cacheStore(string $key, array $value, int $ttl = 120): void
     {
+        if (function_exists('apcu_store') && ini_get('apc.enabled')) {
+            apcu_store($key, $value, $ttl);
+        }
+    }
+
+    private function getAllCustomers(int $count = self::DEFAULT_TOTAL_CUSTOMERS): array
+    {
+        if (self::$customersCache !== null && count(self::$customersCache) === $count) {
+            return self::$customersCache;
+        }
+        $cacheKey = "crm_customers_{$count}";
+        $cached = $this->cacheFetch($cacheKey);
+        if ($cached !== null) {
+            self::$customersCache = $cached;
+            return self::$customersCache;
+        }
+
         $tiers = ['VIP', 'Gold', 'Silver', 'New'];
         $tierClasses = [
             'VIP' => 'badge-vip',
@@ -38,19 +54,117 @@ class CrmModel
 
         $customers = [];
         for ($i = 1; $i <= $count; $i++) {
-            $tier = $tiers[array_rand($tiers)];
+            $tier = $tiers[$i % count($tiers)];
             $customers[] = [
+                'id' => $i,
                 'name' => "Customer {$i}",
                 'email' => "customer{$i}@mail.com",
                 'tier' => $tier,
                 'tierClass' => $tierClasses[$tier],
                 'tierIcon' => $tierIcons[$tier] ?? '&#9679;',
-                'lifetimeValue' => rand(50000, 500000),
-                'totalTrips' => rand(1, 25),
-                'lastContactedDays' => rand(1, 30)
+                'lifetimeValue' => 50000 + (($i * 13791) % 450001),
+                'totalTrips' => 1 + ($i % 25),
+                'lastContactedDays' => 1 + ($i % 30)
             ];
         }
 
-        return $customers;
+        self::$customersCache = $customers;
+        $this->cacheStore($cacheKey, self::$customersCache, 300);
+        return self::$customersCache;
+    }
+
+    public function getDashboardStats(): array
+    {
+        if (self::$statsCache !== null) {
+            return self::$statsCache;
+        }
+        $cachedStats = $this->cacheFetch('crm_dashboard_stats');
+        if ($cachedStats !== null) {
+            self::$statsCache = $cachedStats;
+            return self::$statsCache;
+        }
+
+        $customers = $this->getAllCustomers();
+        $total = count($customers);
+        $vip = 0;
+        $gold = 0;
+        $silver = 0;
+        $new = 0;
+        $active = 0;
+
+        foreach ($customers as $customer) {
+            $tier = $customer['tier'] ?? '';
+            if ($tier === 'VIP') {
+                $vip++;
+            } elseif ($tier === 'Gold') {
+                $gold++;
+            } elseif ($tier === 'Silver') {
+                $silver++;
+            } else {
+                $new++;
+            }
+
+            if ((int) ($customer['lastContactedDays'] ?? 0) <= 15) {
+                $active++;
+            }
+        }
+
+        $safeTotal = max($total, 1);
+        $activePercent = (int) round(($active / $safeTotal) * 100);
+
+        self::$statsCache = [
+            'total' => $total,
+            'activePercent' => $activePercent,
+            'active' => $active,
+            'vip' => $vip,
+            'gold' => $gold,
+            'silver' => $silver,
+            'new' => $new,
+            'rating' => self::RATING,
+            'vipPercent' => round(($vip / $safeTotal) * 100, 2),
+            'goldPercent' => round(($gold / $safeTotal) * 100, 2),
+            'silverPercent' => round(($silver / $safeTotal) * 100, 2),
+            'newPercent' => round(($new / $safeTotal) * 100, 2)
+        ];
+        $this->cacheStore('crm_dashboard_stats', self::$statsCache, 120);
+
+        return self::$statsCache;
+    }
+
+    public function getCustomersPage(int $page = 1, int $perPage = 10, string $tier = 'all', string $search = ''): array
+    {
+        $customers = $this->getAllCustomers();
+        $normalizedTier = strtolower(trim($tier));
+        $normalizedSearch = strtolower(trim($search));
+
+        if ($normalizedTier !== '' && $normalizedTier !== 'all') {
+            $customers = array_values(array_filter($customers, static function (array $customer) use ($normalizedTier): bool {
+                return strtolower((string) ($customer['tier'] ?? '')) === $normalizedTier;
+            }));
+        }
+
+        if ($normalizedSearch !== '') {
+            $customers = array_values(array_filter($customers, static function (array $customer) use ($normalizedSearch): bool {
+                $name = strtolower((string) ($customer['name'] ?? ''));
+                $email = strtolower((string) ($customer['email'] ?? ''));
+                return str_contains($name, $normalizedSearch) || str_contains($email, $normalizedSearch);
+            }));
+        }
+
+        $totalItems = count($customers);
+        $safePerPage = max(1, min($perPage, 100));
+        $totalPages = max(1, (int) ceil($totalItems / $safePerPage));
+        $safePage = max(1, min($page, $totalPages));
+        $offset = ($safePage - 1) * $safePerPage;
+        $items = array_slice($customers, $offset, $safePerPage);
+
+        return [
+            'items' => $items,
+            'page' => $safePage,
+            'perPage' => $safePerPage,
+            'totalItems' => $totalItems,
+            'totalPages' => $totalPages,
+            'offset' => $offset
+        ];
     }
 }

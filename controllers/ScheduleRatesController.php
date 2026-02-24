@@ -16,6 +16,7 @@ class ScheduleRatesController extends BaseController
     public function index(): void
     {
         $data = $this->scheduleRatesModel->getPageData($_GET);
+        $data['isScheduleView'] = ($data['selectedPurpose'] ?? 'schedule') === 'schedule';
         $data['pageTitle'] = 'Schedule & Rates';
         $data['pageSubtitle'] = 'Manage tour schedules, availability, and pricing';
 

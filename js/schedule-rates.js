@@ -1,4 +1,61 @@
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
+    const purposeSelect = document.getElementById('purposeSelect');
+    if (purposeSelect) {
+        purposeSelect.addEventListener('change', function () {
+            const form = this.closest('form');
+            const url = new URL(window.location.href);
+            const purpose = this.value || 'schedule';
+
+            url.searchParams.set('purpose', purpose);
+
+            if (form) {
+                const monthInput = form.querySelector('input[name="month"]');
+                const yearInput = form.querySelector('input[name="year"]');
+                const dayInput = form.querySelector('input[name="day"]');
+                const searchInput = form.querySelector('input[name="search"]');
+
+                if (monthInput && monthInput.value) {
+                    url.searchParams.set('month', monthInput.value);
+                }
+                if (yearInput && yearInput.value) {
+                    url.searchParams.set('year', yearInput.value);
+                }
+                if (dayInput && dayInput.value) {
+                    url.searchParams.set('day', dayInput.value);
+                }
+                if (searchInput) {
+                    const searchValue = searchInput.value.trim();
+                    if (searchValue) {
+                        url.searchParams.set('search', searchValue);
+                    } else {
+                        url.searchParams.delete('search');
+                    }
+                }
+            }
+
+            window.location.href = url.toString();
+        });
+    }
+
+    const addNewTourBtn = document.getElementById('addNewTourBtn');
+    if (addNewTourBtn) {
+        addNewTourBtn.addEventListener('click', function () {
+            alert('Opening new tour creation form');
+        });
+    }
+
+    document.querySelectorAll('.js-tour-action').forEach((button) => {
+        button.addEventListener('click', function () {
+            const action = this.getAttribute('data-action') || 'view';
+            const tourId = this.getAttribute('data-tour-id') || '';
+            if (action === 'manage') {
+                alert(`Managing tour #${tourId}`);
+                return;
+            }
+            alert(`Viewing tour #${tourId}`);
+        });
+    });
+
     const calendarDays = document.querySelectorAll('.calendar-day:not(.empty)');
     const monthSelect = document.getElementById('monthSelect');
     const yearSelect = document.getElementById('yearSelect');
@@ -26,12 +83,12 @@ document.addEventListener('DOMContentLoaded', function() {
     function handleDaySelection(dayElement) {
         const dayNum = dayElement.getAttribute('data-day');
         const slots = dayElement.getAttribute('data-slots');
-        calendarDays.forEach(d => d.classList.remove('selected'));
+        calendarDays.forEach((day) => day.classList.remove('selected'));
         dayElement.classList.add('selected');
 
         if (monthSelect && yearSelect && selectedDateText && availableSlots) {
             selectedDateText.textContent = `${monthSelect.value} ${dayNum}, ${yearSelect.value}`;
-            availableSlots.textContent = slots;
+            availableSlots.textContent = slots || '0/0';
         }
 
         updateQueryParams({
@@ -41,15 +98,15 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    calendarDays.forEach(day => {
-        day.addEventListener('click', function() {
+    calendarDays.forEach((day) => {
+        day.addEventListener('click', function () {
             handleDaySelection(this);
         });
     });
 
-    if (prevMonthBtn) {
-        prevMonthBtn.addEventListener('click', function() {
-            const months = Array.from(monthSelect.options).map(opt => opt.value);
+    if (prevMonthBtn && monthSelect) {
+        prevMonthBtn.addEventListener('click', function () {
+            const months = Array.from(monthSelect.options).map((opt) => opt.value);
             const currentIndex = months.indexOf(monthSelect.value);
             if (currentIndex > 0) {
                 updateQueryParams({ month: months[currentIndex - 1], year: yearSelect ? yearSelect.value : null, day: 1 });
@@ -59,9 +116,9 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    if (nextMonthBtn) {
-        nextMonthBtn.addEventListener('click', function() {
-            const months = Array.from(monthSelect.options).map(opt => opt.value);
+    if (nextMonthBtn && monthSelect) {
+        nextMonthBtn.addEventListener('click', function () {
+            const months = Array.from(monthSelect.options).map((opt) => opt.value);
             const currentIndex = months.indexOf(monthSelect.value);
             if (currentIndex < months.length - 1) {
                 updateQueryParams({ month: months[currentIndex + 1], year: yearSelect ? yearSelect.value : null, day: 1 });
@@ -72,21 +129,21 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     if (monthSelect) {
-        monthSelect.addEventListener('change', function() {
+        monthSelect.addEventListener('change', function () {
             updateQueryParams({ month: monthSelect.value, year: yearSelect ? yearSelect.value : null, day: 1 });
         });
     }
 
     if (yearSelect) {
-        yearSelect.addEventListener('change', function() {
+        yearSelect.addEventListener('change', function () {
             updateQueryParams({ month: monthSelect ? monthSelect.value : null, year: yearSelect.value, day: 1 });
         });
     }
 
     const searchInput = document.querySelector('.search-input');
     if (searchInput) {
-        searchInput.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
+        searchInput.addEventListener('keypress', function (event) {
+            if (event.key === 'Enter') {
                 const form = this.closest('form');
                 if (form) {
                     form.submit();
@@ -97,7 +154,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function filterBookedGuestsByTour(tourId, tourName) {
         let visibleCount = 0;
-        bookedGuestItems.forEach(item => {
+        bookedGuestItems.forEach((item) => {
             const itemTourId = item.getAttribute('data-tour-id') || '';
             const isVisible = itemTourId === tourId;
             item.style.display = isVisible ? '' : 'none';
@@ -115,12 +172,12 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    tourListItems.forEach(item => {
-        item.addEventListener('click', function() {
+    tourListItems.forEach((item) => {
+        item.addEventListener('click', function () {
             const tourId = this.getAttribute('data-tour-id') || '';
             const tourNameEl = this.querySelector('.tour-list-name');
             const tourName = tourNameEl ? tourNameEl.textContent.trim() : '';
-            tourListItems.forEach(btn => btn.classList.remove('active'));
+            tourListItems.forEach((btn) => btn.classList.remove('active'));
             this.classList.add('active');
             filterBookedGuestsByTour(tourId, tourName);
         });
@@ -135,73 +192,74 @@ document.addEventListener('DOMContentLoaded', function() {
         filterBookedGuestsByTour(activeTourId, activeTourName);
     }
 
-    // Tour rates table pagination
     const tourRows = Array.from(document.querySelectorAll('.tour-rate-row'));
-    const paginationList = document.getElementById('tablePagination');
-    const prevBtn = document.getElementById('tablePrevPage');
-    const nextBtn = document.getElementById('tableNextPage');
+    const paginationEl = document.getElementById('tablePagination');
     const entriesStart = document.getElementById('entriesStart');
     const entriesEnd = document.getElementById('entriesEnd');
     const entriesTotal = document.getElementById('entriesTotal');
 
-    if (tourRows.length > 0 && paginationList && prevBtn && nextBtn && entriesStart && entriesEnd && entriesTotal) {
-        const pageSize = 6;
+    if (!tourRows.length || !paginationEl || !entriesStart || !entriesEnd || !entriesTotal) {
+        return;
+    }
+
+    const pageSize = 10;
+    let currentPage = 1;
+
+    function buildPagination(totalPages) {
+        paginationEl.innerHTML = '';
+
+        const previous = document.createElement('li');
+        previous.className = `page-item ${currentPage === 1 ? 'disabled' : ''}`;
+        previous.innerHTML = '<a class="page-link" href="#">Previous</a>';
+        previous.addEventListener('click', function (event) {
+            event.preventDefault();
+            if (currentPage > 1) {
+                renderPage(currentPage - 1);
+            }
+        });
+        paginationEl.appendChild(previous);
+
+        for (let page = 1; page <= totalPages; page++) {
+            const pageItem = document.createElement('li');
+            pageItem.className = `page-item ${page === currentPage ? 'active' : ''}`;
+            pageItem.innerHTML = `<a class="page-link" href="#">${page}</a>`;
+            pageItem.addEventListener('click', function (event) {
+                event.preventDefault();
+                renderPage(page);
+            });
+            paginationEl.appendChild(pageItem);
+        }
+
+        const next = document.createElement('li');
+        next.className = `page-item ${currentPage === totalPages ? 'disabled' : ''}`;
+        next.innerHTML = '<a class="page-link" href="#">Next</a>';
+        next.addEventListener('click', function (event) {
+            event.preventDefault();
+            if (currentPage < totalPages) {
+                renderPage(currentPage + 1);
+            }
+        });
+        paginationEl.appendChild(next);
+    }
+
+    function renderPage(page) {
         const totalRows = tourRows.length;
         const totalPages = Math.max(1, Math.ceil(totalRows / pageSize));
-        let currentPage = 1;
+        currentPage = Math.min(Math.max(1, page), totalPages);
+
+        const startIndex = (currentPage - 1) * pageSize;
+        const endIndex = Math.min(startIndex + pageSize, totalRows);
+
+        tourRows.forEach((row, index) => {
+            row.style.display = index >= startIndex && index < endIndex ? '' : 'none';
+        });
+
+        entriesStart.textContent = totalRows === 0 ? '0' : String(startIndex + 1);
+        entriesEnd.textContent = totalRows === 0 ? '0' : String(endIndex);
         entriesTotal.textContent = String(totalRows);
 
-        function renderPageNumbers() {
-            paginationList.innerHTML = '';
-            for (let page = 1; page <= totalPages; page++) {
-                const li = document.createElement('li');
-                li.className = `page-item${page === currentPage ? ' active' : ''}`;
-                const button = document.createElement('button');
-                button.type = 'button';
-                button.className = 'page-link';
-                button.textContent = String(page);
-                button.addEventListener('click', function() {
-                    currentPage = page;
-                    renderTablePage();
-                });
-                li.appendChild(button);
-                paginationList.appendChild(li);
-            }
-        }
-
-        function renderTablePage() {
-            const startIndex = (currentPage - 1) * pageSize;
-            const endIndex = Math.min(startIndex + pageSize, totalRows);
-
-            tourRows.forEach((row, index) => {
-                row.style.display = (index >= startIndex && index < endIndex) ? '' : 'none';
-            });
-
-            entriesStart.textContent = totalRows === 0 ? '0' : String(startIndex + 1);
-            entriesEnd.textContent = String(endIndex);
-            prevBtn.disabled = currentPage === 1;
-            nextBtn.disabled = currentPage === totalPages;
-            renderPageNumbers();
-        }
-
-        prevBtn.addEventListener('click', function() {
-            if (currentPage > 1) {
-                currentPage--;
-                renderTablePage();
-            }
-        });
-
-        nextBtn.addEventListener('click', function() {
-            if (currentPage < totalPages) {
-                currentPage++;
-                renderTablePage();
-            }
-        });
-
-        renderTablePage();
+        buildPagination(totalPages);
     }
-});
 
-function addNewTour() {
-    alert('Opening new tour creation form');
-}
+    renderPage(1);
+});

@@ -2,14 +2,44 @@
 
 class PassportVisaModel
 {
-    public function getApplicants(int $count = 15): array
+    private const DEFAULT_TOTAL_APPLICANTS = 300;
+    private static ?array $cache = null;
+
+    public function getApplicantsPage(int $page = 1, int $perPage = 10, string $filter = 'all', string $search = ''): array
     {
-        $applicants = [];
-        for ($i = 0; $i < $count; $i++) {
-            $applicants[] = $this->decorateApplicant($this->generateApplicant($i));
+        $all = $this->getApplicants();
+        $filtered = $this->applyFilters($all, $filter, $search);
+
+        $totalItems = count($filtered);
+        $safePerPage = max(1, min($perPage, 100));
+        $totalPages = max(1, (int) ceil($totalItems / $safePerPage));
+        $safePage = max(1, min($page, $totalPages));
+        $offset = ($safePage - 1) * $safePerPage;
+
+        return [
+            'items' => array_slice($filtered, $offset, $safePerPage),
+            'allFiltered' => $filtered,
+            'page' => $safePage,
+            'perPage' => $safePerPage,
+            'totalItems' => $totalItems,
+            'totalPages' => $totalPages,
+            'offset' => $offset
+        ];
+    }
+
+    public function getApplicants(int $count = self::DEFAULT_TOTAL_APPLICANTS): array
+    {
+        if (self::$cache !== null && count(self::$cache) === $count) {
+            return self::$cache;
         }
 
-        return $applicants;
+        $applicants = [];
+        for ($i = 0; $i < $count; $i++) {
+            $applicants[] = $this->generateApplicant($i);
+        }
+
+        self::$cache = $applicants;
+        return self::$cache;
     }
 
     public function buildStats(array $applicants): array
@@ -17,13 +47,13 @@ class PassportVisaModel
         $stats = ['total' => count($applicants), 'approved' => 0, 'review' => 0, 'new' => 0];
 
         foreach ($applicants as $applicant) {
-            if ($applicant['application']['status'] === 'green') {
+            if (($applicant['application']['status'] ?? '') === 'green') {
                 $stats['approved']++;
             }
-            if (in_array($applicant['application']['status'], ['yellow', 'blue'], true)) {
+            if (in_array(($applicant['application']['status'] ?? ''), ['yellow', 'blue'], true)) {
                 $stats['review']++;
             }
-            if (strtotime($applicant['submissionDate']) > strtotime('-7 days')) {
+            if (strtotime((string) ($applicant['submissionDate'] ?? '')) > strtotime('-7 days')) {
                 $stats['new']++;
             }
         }
@@ -31,38 +61,66 @@ class PassportVisaModel
         return $stats;
     }
 
-    private function normalizeStatus(string $value): string
+    private function applyFilters(array $applicants, string $filter, string $search): array
     {
-        return strtolower(trim($value));
-    }
+        $normalizedFilter = strtolower(trim($filter));
+        $normalizedSearch = strtolower(trim($search));
+        $today = strtotime(date('Y-m-d'));
 
-    private function badgeClassForStatus(string $value): string
-    {
-        $map = [
-            'approved' => 'bg-success',
-            'submitted' => 'bg-primary',
-            'processing' => 'bg-info text-dark',
-            'under review' => 'bg-warning text-dark',
-            'missing' => 'bg-warning text-dark',
-            'pending' => 'bg-secondary',
-            'rejected' => 'bg-danger',
-            'action required' => 'bg-danger',
-            'not started' => 'bg-light text-dark border',
-            'visa issued' => 'bg-success'
-        ];
+        return array_values(array_filter($applicants, static function (array $applicant) use ($normalizedFilter, $normalizedSearch, $today): bool {
+            $documents = strtolower(trim((string) ($applicant['documents']['text'] ?? '')));
+            $application = strtolower(trim((string) ($applicant['application']['text'] ?? '')));
+            $submissionDate = strtotime((string) ($applicant['submissionDateIso'] ?? ''));
 
-        return $map[$this->normalizeStatus($value)] ?? 'bg-secondary';
-    }
+            $matchesFilter = true;
+            switch ($normalizedFilter) {
+                case 'new':
+                    if ($submissionDate === false) {
+                        $matchesFilter = false;
+                        break;
+                    }
+                    $diffDays = ($today - $submissionDate) / 86400;
+                    $matchesFilter = $diffDays >= 0 && $diffDays <= 7;
+                    break;
+                case 'documents-issue':
+                    $matchesFilter = in_array($documents, ['missing', 'rejected'], true);
+                    break;
+                case 'under-processing':
+                    $matchesFilter = $documents === 'submitted' || in_array($application, ['processing', 'under review'], true);
+                    break;
+                case 'for-action':
+                    $matchesFilter = in_array($application, ['action required', 'pending'], true);
+                    break;
+                case 'approved':
+                    $matchesFilter = $documents === 'approved' || $application === 'approved';
+                    break;
+                case 'completed':
+                    $matchesFilter = $application === 'visa issued';
+                    break;
+                case 'all':
+                default:
+                    $matchesFilter = true;
+                    break;
+            }
 
-    private function decorateApplicant(array $applicant): array
-    {
-        $applicant['documentsNormalized'] = $this->normalizeStatus($applicant['documents']['text']);
-        $applicant['applicationNormalized'] = $this->normalizeStatus($applicant['application']['text']);
-        $applicant['documentsBadgeClass'] = $this->badgeClassForStatus($applicant['documents']['text']);
-        $applicant['applicationBadgeClass'] = $this->badgeClassForStatus($applicant['application']['text']);
-        $applicant['submissionDateIso'] = date('Y-m-d', strtotime($applicant['submissionDate']));
+            if (!$matchesFilter) {
+                return false;
+            }
 
-        return $applicant;
+            if ($normalizedSearch === '') {
+                return true;
+            }
+
+            $haystack = strtolower(implode(' ', [
+                (string) ($applicant['name'] ?? ''),
+                (string) ($applicant['country'] ?? ''),
+                (string) ($applicant['passport']['number'] ?? ''),
+                (string) ($applicant['documents']['text'] ?? ''),
+                (string) ($applicant['application']['text'] ?? '')
+            ]));
+
+            return str_contains($haystack, $normalizedSearch);
+        }));
     }
 
     private function generateApplicant(int $index): array
@@ -96,23 +154,24 @@ class PassportVisaModel
             ['status' => 'gray', 'text' => 'Not Started', 'desc' => 'Not started']
         ];
 
-        $passportRecord = $passport[array_rand($passport)];
-        $documentRecord = $documents[array_rand($documents)];
-        $applicationRecord = $applications[array_rand($applications)];
+        $passportRecord = $passport[$index % count($passport)];
+        $documentRecord = $documents[$index % count($documents)];
+        $applicationRecord = $applications[$index % count($applications)];
 
         return [
             'id' => $index + 1,
-            'name' => $first[array_rand($first)] . ' ' . $last[array_rand($last)],
+            'name' => $first[$index % count($first)] . ' ' . $last[($index * 3) % count($last)],
             'passport' => [
-                'number' => $passportRecord['prefix'] . rand(1000, 9999) . chr(rand(65, 90)),
+                'number' => $passportRecord['prefix'] . str_pad((string) (1000 + (($index * 17) % 9000)), 4, '0', STR_PAD_LEFT) . chr(65 + ($index % 26)),
                 'status' => $passportRecord['status'],
                 'desc' => $passportRecord['desc']
             ],
-            'country' => $countries[array_rand($countries)],
+            'country' => $countries[$index % count($countries)],
             'documents' => $documentRecord,
             'application' => $applicationRecord,
-            'submissionDate' => date('m/d/Y', strtotime('-' . rand(0, 60) . ' days')),
-            'priority' => rand(1, 10) > 7 ? 'High' : (rand(1, 10) > 4 ? 'Medium' : 'Low')
+            'submissionDate' => date('m/d/Y', strtotime('-' . ($index % 61) . ' days')),
+            'submissionDateIso' => date('Y-m-d', strtotime('-' . ($index % 61) . ' days')),
+            'priority' => ($index % 10) > 7 ? 'High' : (($index % 10) > 4 ? 'Medium' : 'Low')
         ];
     }
 }
