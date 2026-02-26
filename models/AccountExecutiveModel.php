@@ -1,9 +1,20 @@
 <?php
 
+require_once __DIR__ . '/../config/database.php';
+
 class AccountExecutiveModel
 {
     private const DEFAULT_TOTAL_CUSTOMERS = 300;
     private static ?array $cache = null;
+    private ?mysqli $conn = null;
+
+    public function __destruct()
+    {
+        if ($this->conn instanceof mysqli) {
+            closeDBConnection($this->conn);
+            $this->conn = null;
+        }
+    }
 
     public function getCustomersPage(
         int $page = 1,
@@ -23,8 +34,16 @@ class AccountExecutiveModel
         $safePage = max(1, min($page, $totalPages));
         $offset = ($safePage - 1) * $safePerPage;
 
+        $items = array_slice($filtered, $offset, $safePerPage);
+        if ($this->normalizeValue($tabFilter) === 'refund') {
+            $items = array_map(static function (array $customer): array {
+                $customer['paymentStatus'] = 'Refunded';
+                return $customer;
+            }, $items);
+        }
+
         return [
-            'items' => array_slice($filtered, $offset, $safePerPage),
+            'items' => $items,
             'allFiltered' => $filtered,
             'page' => $safePage,
             'perPage' => $safePerPage,
@@ -36,6 +55,11 @@ class AccountExecutiveModel
 
     public function getCustomers(int $count = self::DEFAULT_TOTAL_CUSTOMERS): array
     {
+        $dbCustomers = $this->getCustomersFromDatabase();
+        if (!empty($dbCustomers)) {
+            return $dbCustomers;
+        }
+
         if (self::$cache !== null && count(self::$cache) === $count) {
             return self::$cache;
         }
@@ -51,6 +75,68 @@ class AccountExecutiveModel
 
         self::$cache = $customers;
         return self::$cache;
+    }
+
+    private function getConnection(): ?mysqli
+    {
+        if ($this->conn instanceof mysqli && !$this->conn->connect_error) {
+            return $this->conn;
+        }
+
+        try {
+            $this->conn = getDBConnection();
+        } catch (Throwable $exception) {
+            $this->conn = null;
+        }
+
+        return $this->conn;
+    }
+
+    private function getCustomersFromDatabase(): array
+    {
+        $conn = $this->getConnection();
+        if (!($conn instanceof mysqli)) {
+            return [];
+        }
+
+        $sql = 'SELECT id, full_name, destination, last_contacted_at, created_at, payment_status, status, admission_status, progress, refund_flag
+                FROM customers
+                ORDER BY full_name ASC';
+        $result = $conn->query($sql);
+        if (!($result instanceof mysqli_result)) {
+            return [];
+        }
+
+        $rows = [];
+        while ($row = $result->fetch_assoc()) {
+            $lastContactedRaw = (string) ($row['last_contacted_at'] ?? '');
+            $createdDateRaw = (string) ($row['created_at'] ?? '');
+            $paymentStatus = $this->toDisplayCase((string) ($row['payment_status'] ?? 'pending'));
+            $status = $this->toDisplayCase((string) ($row['status'] ?? 'pending'));
+            $admissionStatus = $this->toDisplayCase((string) ($row['admission_status'] ?? 'pending'));
+
+            $rows[] = [
+                'id' => (int) ($row['id'] ?? 0),
+                'name' => (string) ($row['full_name'] ?? 'Unknown Customer'),
+                'destination' => (string) ($row['destination'] ?? 'N/A'),
+                'lastContacted' => $lastContactedRaw !== '' ? date('m/d/Y - h:i a', strtotime($lastContactedRaw)) : 'N/A',
+                'lastContactedDate' => $lastContactedRaw !== '' ? date('Y-m-d', strtotime($lastContactedRaw)) : date('Y-m-d'),
+                'createdDate' => $createdDateRaw !== '' ? date('Y-m-d', strtotime($createdDateRaw)) : date('Y-m-d'),
+                'paymentStatus' => $paymentStatus,
+                'progress' => max(0, min(100, (int) ($row['progress'] ?? 0))),
+                'status' => $status,
+                'admissionStatus' => $admissionStatus,
+                'refund' => ((int) ($row['refund_flag'] ?? 0)) === 1 ? 'true' : 'false'
+            ];
+        }
+
+        return $rows;
+    }
+
+    private function toDisplayCase(string $value): string
+    {
+        $normalized = str_replace('_', ' ', trim($value));
+        return ucwords(strtolower($normalized));
     }
 
     public function buildStats(array $customers): array
@@ -91,6 +177,14 @@ class AccountExecutiveModel
             )
         );
 
+        $resolvedStatus = $statuses[($index * 3) % count($statuses)];
+        $resolvedPayment = $payments[$index % count($payments)];
+        if ($createdDaysAgo <= 7) {
+            // New clients should appear with early-stage document and payment indicators.
+            $resolvedStatus = 'Pending';
+            $resolvedPayment = ($index % 2 === 0) ? 'Unpaid' : 'Partially Paid';
+        }
+
         return [
             'id' => $index + 1,
             'name' => $names[$index % count($names)],
@@ -98,9 +192,9 @@ class AccountExecutiveModel
             'lastContacted' => date('m/d/Y - h:i a', strtotime($lastContactedDate)),
             'lastContactedDate' => date('Y-m-d', strtotime($lastContactedDate)),
             'createdDate' => $createdDate,
-            'paymentStatus' => $payments[$index % count($payments)],
+            'paymentStatus' => $resolvedPayment,
             'progress' => 10 + (($index * 11) % 91),
-            'status' => $statuses[($index * 3) % count($statuses)],
+            'status' => $resolvedStatus,
             'admissionStatus' => ($index % 2) === 0 ? 'Admitted' : 'Pending',
             'refund' => ($index % 10) > 7 ? 'true' : 'false'
         ];
@@ -129,11 +223,8 @@ class AccountExecutiveModel
         ): bool {
             $payment = $this->normalizeValue((string) ($customer['paymentStatus'] ?? ''));
             $status = $this->normalizeValue((string) ($customer['status'] ?? ''));
-            $progress = (int) ($customer['progress'] ?? 0);
             $refund = $this->normalizeValue((string) ($customer['refund'] ?? '')) === 'true';
             $createdDate = strtotime((string) ($customer['createdDate'] ?? ''));
-            $lastContactedDate = strtotime((string) ($customer['lastContactedDate'] ?? ''));
-            $lastContactedDays = ($lastContactedDate !== false) ? (($today - $lastContactedDate) / 86400) : INF;
 
             $matchesTab = true;
             switch ($normalizedTab) {
@@ -146,19 +237,24 @@ class AccountExecutiveModel
                     $matchesTab = $createdDays >= 0 && $createdDays <= 7;
                     break;
                 case 'for-follow-up':
-                    $matchesTab = $status === 'pending' && $progress < 50 && $lastContactedDays > 3;
+                    // Follow-up focuses on pending document status regardless of payment.
+                    $matchesTab = $status === 'pending';
                     break;
                 case 'ongoing':
-                    $matchesTab = $status === 'processing' && $progress >= 20 && $progress <= 99;
+                    // Ongoing focuses on documents that are actively processing.
+                    $matchesTab = $status === 'processing';
                     break;
                 case 'payment-issues':
-                    $matchesTab = in_array($payment, ['unpaid', 'partially paid', 'overdue'], true);
+                    // Payment Issues focuses strictly on unpaid/overdue customers.
+                    $matchesTab = in_array($payment, ['unpaid', 'overdue'], true);
                     break;
                 case 'finished':
-                    $matchesTab = $status === 'finished' || $progress === 100;
+                    // Finished requires both complete documents and paid payment status.
+                    $matchesTab = $status === 'finished' && $payment === 'paid';
                     break;
                 case 'refund':
-                    $matchesTab = $refund || ($status === 'cancelled' && in_array($payment, ['paid', 'partially paid'], true));
+                    // Refund tab is payment-focused; status should not restrict rows.
+                    $matchesTab = $refund;
                     break;
                 case 'all':
                 default:
@@ -170,11 +266,13 @@ class AccountExecutiveModel
                 return false;
             }
 
-            if ($normalizedPayment !== 'all' && $payment !== $normalizedPayment) {
+            $ignorePaymentFilter = in_array($normalizedTab, ['new', 'for-follow-up', 'ongoing', 'refund'], true);
+            if (!$ignorePaymentFilter && $normalizedPayment !== 'all' && $payment !== $normalizedPayment) {
                 return false;
             }
 
-            if ($normalizedStatus !== 'all' && $status !== $normalizedStatus) {
+            $ignoreStatusFilter = in_array($normalizedTab, ['new', 'for-follow-up', 'ongoing', 'payment-issues', 'refund'], true);
+            if (!$ignoreStatusFilter && $normalizedStatus !== 'all' && $status !== $normalizedStatus) {
                 return false;
             }
 

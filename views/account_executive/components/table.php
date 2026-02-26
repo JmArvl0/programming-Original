@@ -23,21 +23,7 @@
                     </div>
                 </th>
                 <th>Progress</th>
-                <th>
-                    <div class="dropdown status-header-dropdown">
-                        <button class="btn btn-link dropdown-toggle" type="button" id="statusHeaderDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                            Status
-                        </button>
-                        <ul class="dropdown-menu" aria-labelledby="statusHeaderDropdown">
-                            <li><a class="dropdown-item <?= $selectedStatus === 'all' ? 'active' : '' ?>" href="<?= htmlspecialchars($buildAccountExecutiveUrl(['status' => 'all', 'page' => 1]), ENT_QUOTES, 'UTF-8') ?>" data-status="all">All Status</a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item <?= $selectedStatus === 'finished' ? 'active' : '' ?>" href="<?= htmlspecialchars($buildAccountExecutiveUrl(['status' => 'finished', 'page' => 1]), ENT_QUOTES, 'UTF-8') ?>" data-status="finished"><span class="badge-dot bg-success me-2 ms-2"></span> Finished</a></li>
-                            <li><a class="dropdown-item <?= $selectedStatus === 'processing' ? 'active' : '' ?>" href="<?= htmlspecialchars($buildAccountExecutiveUrl(['status' => 'processing', 'page' => 1]), ENT_QUOTES, 'UTF-8') ?>" data-status="processing"><span class="badge-dot bg-info me-2 ms-2"></span> Processing</a></li>
-                            <li><a class="dropdown-item <?= $selectedStatus === 'pending' ? 'active' : '' ?>" href="<?= htmlspecialchars($buildAccountExecutiveUrl(['status' => 'pending', 'page' => 1]), ENT_QUOTES, 'UTF-8') ?>" data-status="pending"><span class="badge-dot bg-warning me-2 ms-2"></span> Pending</a></li>
-                            <li><a class="dropdown-item <?= $selectedStatus === 'cancelled' ? 'active' : '' ?>" href="<?= htmlspecialchars($buildAccountExecutiveUrl(['status' => 'cancelled', 'page' => 1]), ENT_QUOTES, 'UTF-8') ?>" data-status="cancelled"><span class="badge-dot bg-danger me-2 ms-2"></span> Cancelled</a></li>
-                        </ul>
-                    </div>
-                </th>
+                <th>Documents</th>
                 <th>Actions</th>
             </tr>
         </thead>

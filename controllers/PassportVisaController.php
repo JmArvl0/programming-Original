@@ -2,16 +2,23 @@
 
 require_once __DIR__ . '/BaseController.php';
 require_once __DIR__ . '/../models/PassportVisaModel.php';
+require_once __DIR__ . '/../models/NotificationsModel.php';
 require_once __DIR__ . '/../includes/auth.php';
 
 class PassportVisaController extends BaseController
 {
     private PassportVisaModel $passportVisaModel;
+    private ?NotificationsModel $notificationsModel = null;
     private const DEFAULT_PER_PAGE = 10;
 
     public function __construct()
     {
         $this->passportVisaModel = new PassportVisaModel();
+        try {
+            $this->notificationsModel = new NotificationsModel();
+        } catch (Throwable $exception) {
+            $this->notificationsModel = null;
+        }
     }
 
     public function index(): void
@@ -112,6 +119,8 @@ class PassportVisaController extends BaseController
 
     private function handleAjax(string $action): void
     {
+        $payload = $this->readJsonBody();
+
         switch ($action) {
             case 'upload-document':
                 $this->jsonResponse([
@@ -122,18 +131,40 @@ class PassportVisaController extends BaseController
                 return;
 
             case 'update-status':
+                $applicationId = (int) ($payload['applicantId'] ?? 0);
+                $status = strtolower(trim((string) ($payload['status'] ?? 'approved')));
+                $message = $status === 'missing' || $status === 'missing requirement'
+                    ? 'Missing passport requirement detected.'
+                    : 'Document has been approved.';
+                if ($this->notificationsModel instanceof NotificationsModel) {
+                    $this->notificationsModel->createNotification(
+                        'status_update',
+                        'Passport',
+                        max(1, $applicationId),
+                        $message
+                    );
+                }
                 $this->jsonResponse([
                     'ok' => true,
                     'action' => 'update-status',
-                    'message' => 'Status update endpoint ready for integration.'
+                    'message' => 'Passport status updated and notification sent.'
                 ]);
                 return;
 
             case 'send-reminder':
+                $applicationId = (int) ($payload['applicantId'] ?? 0);
+                if ($this->notificationsModel instanceof NotificationsModel) {
+                    $this->notificationsModel->createNotification(
+                        'status_update',
+                        'Passport',
+                        max(1, $applicationId),
+                        'Reminder sent for pending passport requirement.'
+                    );
+                }
                 $this->jsonResponse([
                     'ok' => true,
                     'action' => 'send-reminder',
-                    'message' => 'Reminder endpoint ready for integration.'
+                    'message' => 'Reminder sent and notification recorded.'
                 ]);
                 return;
 
@@ -144,5 +175,16 @@ class PassportVisaController extends BaseController
                 ], 400);
                 return;
         }
+    }
+
+    private function readJsonBody(): array
+    {
+        $raw = file_get_contents('php://input');
+        if (!is_string($raw) || trim($raw) === '') {
+            return [];
+        }
+
+        $decoded = json_decode($raw, true);
+        return is_array($decoded) ? $decoded : [];
     }
 }

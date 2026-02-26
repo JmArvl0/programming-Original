@@ -103,14 +103,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // Notification icons
-    const notificationIcons = document.querySelectorAll('.notification-icon');
-    notificationIcons.forEach(icon => {
-        icon.addEventListener('click', function() {
-            alert('You have new notifications');
-        });
-    });
-
     // Profile click
     const profilePics = document.querySelectorAll('.profile-pic, .user-profile');
     profilePics.forEach(pic => {
@@ -167,6 +159,223 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     });
+
+    const messagesBadge = document.getElementById('headerMessagesBadge');
+    const notificationsBadge = document.getElementById('headerNotificationsBadge');
+    const messagesCountLabel = document.getElementById('headerMessagesCountLabel');
+    const notificationsCountLabel = document.getElementById('headerNotificationsCountLabel');
+    const markAllMessagesReadHeaderBtn = document.getElementById('markAllMessagesReadHeaderBtn');
+    const markAllMessagesReadPageBtn = document.getElementById('markAllMessagesReadBtn');
+    const markAllNotificationsReadBtn = document.getElementById('markAllNotificationsReadBtn');
+    const messagesList = document.getElementById('headerMessagesList');
+    const notificationsList = document.getElementById('headerNotificationsList');
+
+    function escapeHtml(value) {
+        return String(value || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    function setBadgeCount(el, count) {
+        if (!el) {
+            return;
+        }
+        const safe = Number.isFinite(count) ? Math.max(0, count) : 0;
+        el.textContent = String(safe);
+        if (safe > 0) {
+            el.classList.remove('d-none');
+        } else {
+            el.classList.add('d-none');
+        }
+    }
+
+    async function callMessagesAjax(action, payload) {
+        const url = new URL(window.location.href);
+        url.pathname = url.pathname.replace(/[^/]*$/, 'messages.php');
+        url.search = '';
+        url.searchParams.set('ajax', action);
+        const response = await fetch(url.toString(), {
+            method: payload ? 'POST' : 'GET',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: payload ? JSON.stringify(payload) : undefined
+        });
+        if (!response.ok) {
+            throw new Error('Request failed');
+        }
+        return response.json();
+    }
+
+    async function refreshHeaderCounts() {
+        try {
+            const result = await callMessagesAjax('header-summary');
+            if (!result || !result.ok) {
+                return;
+            }
+            const messagesUnread = Number(result.messages_unread || 0);
+            const notificationsUnread = Number(result.notifications_unread || 0);
+
+            setBadgeCount(messagesBadge, messagesUnread);
+            setBadgeCount(notificationsBadge, notificationsUnread);
+            if (messagesCountLabel) {
+                messagesCountLabel.textContent = String(messagesUnread);
+            }
+            if (notificationsCountLabel) {
+                notificationsCountLabel.textContent = String(notificationsUnread);
+            }
+        } catch (error) {
+            // Ignore polling failures to keep UX stable.
+        }
+    }
+
+    async function refreshRecentMessages() {
+        if (!messagesList) {
+            return;
+        }
+        try {
+            const result = await callMessagesAjax('recent-messages');
+            if (!result || !result.ok) {
+                return;
+            }
+            const items = Array.isArray(result.items) ? result.items : [];
+            if (!items.length) {
+                messagesList.innerHTML = '<div class="dropdown-item-text text-muted small">No recent messages.</div>';
+                return;
+            }
+
+            messagesList.innerHTML = items.map((item) => {
+                const senderRole = escapeHtml((item.sender_role || '').toUpperCase());
+                const moduleOrigin = escapeHtml(item.module_origin || 'General');
+                const messageText = escapeHtml(item.message_text || '');
+                const isUnread = Number(item.is_read || 0) === 0;
+                return `
+                    <div class="dropdown-item-text border-bottom py-2">
+                        <div class="d-flex justify-content-between">
+                            <small class="fw-semibold text-uppercase">${senderRole}</small>
+                            ${isUnread ? '<small class="badge bg-danger">New</small>' : ''}
+                        </div>
+                        <div class="small text-muted">${moduleOrigin}</div>
+                        <div class="small">${messageText}</div>
+                    </div>
+                `;
+            }).join('');
+        } catch (error) {
+            // Ignore dropdown refresh failures.
+        }
+    }
+
+    async function refreshRecentNotifications() {
+        if (!notificationsList) {
+            return;
+        }
+        try {
+            const result = await callMessagesAjax('recent-notifications');
+            if (!result || !result.ok) {
+                return;
+            }
+
+            const grouped = result.items && typeof result.items === 'object' ? result.items : {};
+            const modules = Object.keys(grouped);
+            if (!modules.length) {
+                notificationsList.innerHTML = '<div class="dropdown-item-text text-muted small">No recent notifications.</div>';
+                return;
+            }
+
+            notificationsList.innerHTML = modules.map((moduleName) => {
+                const items = Array.isArray(grouped[moduleName]) ? grouped[moduleName] : [];
+                const moduleSafe = escapeHtml(moduleName);
+                const moduleLink = moduleName.toLowerCase() === 'passport' || moduleName.toLowerCase() === 'passport visa'
+                    ? 'passport_visa.php'
+                    : moduleName.toLowerCase() === 'crm'
+                        ? 'crm.php'
+                        : moduleName.toLowerCase() === 'schedule'
+                            ? 'schedule_rates.php'
+                            : moduleName.toLowerCase() === 'facilities'
+                                ? 'facilities.php'
+                                : moduleName.toLowerCase() === 'financial'
+                                    ? 'account_executive.php'
+                                    : 'index.php';
+
+                const links = items.map((item) => {
+                    const message = escapeHtml(item.message || '');
+                    return `<a href="${moduleLink}" class="d-block small text-decoration-none mb-1">${message}</a>`;
+                }).join('');
+
+                return `
+                    <div class="dropdown-item-text border-bottom py-2">
+                        <div class="small fw-semibold mb-1">${moduleSafe}</div>
+                        ${links}
+                    </div>
+                `;
+            }).join('');
+        } catch (error) {
+            // Ignore dropdown refresh failures.
+        }
+    }
+
+    async function markAllMessagesRead() {
+        try {
+            const result = await callMessagesAjax('mark-all-messages-read', {});
+            if (result && result.ok) {
+                await refreshHeaderCounts();
+                await refreshRecentMessages();
+                if (window.location.pathname.toLowerCase().endsWith('/messages.php')) {
+                    window.location.reload();
+                }
+            }
+        } catch (error) {
+            alert('Unable to mark all messages as read.');
+        }
+    }
+
+    async function markAllNotificationsRead() {
+        try {
+            const result = await callMessagesAjax('mark-all-notifications-read', {});
+            if (result && result.ok) {
+                await refreshHeaderCounts();
+                await refreshRecentNotifications();
+            }
+        } catch (error) {
+            alert('Unable to mark all notifications as read.');
+        }
+    }
+
+    if (markAllMessagesReadHeaderBtn) {
+        markAllMessagesReadHeaderBtn.addEventListener('click', function () {
+            markAllMessagesRead();
+        });
+    }
+    if (markAllMessagesReadPageBtn) {
+        markAllMessagesReadPageBtn.addEventListener('click', function () {
+            markAllMessagesRead();
+        });
+    }
+    if (markAllNotificationsReadBtn) {
+        markAllNotificationsReadBtn.addEventListener('click', function () {
+            markAllNotificationsRead();
+        });
+    }
+
+    const messagesDropdownBtn = document.getElementById('messagesDropdownBtn');
+    if (messagesDropdownBtn) {
+        messagesDropdownBtn.addEventListener('click', function () {
+            refreshRecentMessages();
+        });
+    }
+
+    const notificationsDropdownBtn = document.getElementById('notificationsDropdownBtn');
+    if (notificationsDropdownBtn) {
+        notificationsDropdownBtn.addEventListener('click', function () {
+            refreshRecentNotifications();
+        });
+    }
+
+    refreshHeaderCounts();
+    setInterval(refreshHeaderCounts, 45000);
 });
 
 // Update selected date details

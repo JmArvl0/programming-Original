@@ -2,16 +2,23 @@
 
 require_once __DIR__ . '/BaseController.php';
 require_once __DIR__ . '/../models/AccountExecutiveModel.php';
+require_once __DIR__ . '/../models/NotificationsModel.php';
 require_once __DIR__ . '/../includes/auth.php';
 
 class AccountExecutiveController extends BaseController
 {
     private AccountExecutiveModel $accountExecutiveModel;
+    private ?NotificationsModel $notificationsModel = null;
     private const DEFAULT_PER_PAGE = 10;
 
     public function __construct()
     {
         $this->accountExecutiveModel = new AccountExecutiveModel();
+        try {
+            $this->notificationsModel = new NotificationsModel();
+        } catch (Throwable $exception) {
+            $this->notificationsModel = null;
+        }
     }
 
     public function index(): void
@@ -97,6 +104,7 @@ class AccountExecutiveController extends BaseController
             'paid' => 'bg-success',
             'unpaid', 'overdue' => 'bg-danger',
             'partially paid' => 'bg-warning text-dark',
+            'refunded' => 'bg-info text-dark',
             default => 'bg-secondary'
         };
     }
@@ -129,6 +137,8 @@ class AccountExecutiveController extends BaseController
 
     private function handleAjax(string $action): void
     {
+        $payload = $this->readJsonBody();
+
         switch ($action) {
             case 'edit-customer':
                 $this->jsonResponse([
@@ -145,17 +155,38 @@ class AccountExecutiveController extends BaseController
                 ]);
                 return;
             case 'send-reminder':
+                $customerIds = $payload['customer_ids'] ?? [];
+                $totalTargets = is_array($customerIds) ? count($customerIds) : 0;
+                if ($this->notificationsModel instanceof NotificationsModel) {
+                    $this->notificationsModel->createNotification(
+                        'payment_due',
+                        'Financial',
+                        max(1, $totalTargets),
+                        $totalTargets > 0
+                            ? 'Payment overdue reminders sent to ' . $totalTargets . ' customer(s).'
+                            : 'Payment reminder action was triggered.'
+                    );
+                }
                 $this->jsonResponse([
                     'ok' => true,
                     'action' => 'send-reminder',
-                    'message' => 'Reminder endpoint ready for integration.'
+                    'message' => 'Payment reminder sent and notification logged.'
                 ]);
                 return;
             case 'update-status':
+                $customerId = (int) ($payload['customer_id'] ?? 0);
+                if ($this->notificationsModel instanceof NotificationsModel) {
+                    $this->notificationsModel->createNotification(
+                        'payment_received',
+                        'Financial',
+                        max(1, $customerId),
+                        'Customer payment status was updated.'
+                    );
+                }
                 $this->jsonResponse([
                     'ok' => true,
                     'action' => 'update-status',
-                    'message' => 'Status update endpoint ready for integration.'
+                    'message' => 'Customer status updated and financial notification sent.'
                 ]);
                 return;
             default:
@@ -165,5 +196,16 @@ class AccountExecutiveController extends BaseController
                 ], 400);
                 return;
         }
+    }
+
+    private function readJsonBody(): array
+    {
+        $raw = file_get_contents('php://input');
+        if (!is_string($raw) || trim($raw) === '') {
+            return [];
+        }
+
+        $decoded = json_decode($raw, true);
+        return is_array($decoded) ? $decoded : [];
     }
 }

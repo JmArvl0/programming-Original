@@ -68,7 +68,26 @@ function viewReservationRequest(id) {
 }
 
 function updateReservationStatus(id) {
-    alert(`Updating reservation request status for ID: ${id}`);
+    const url = new URL(window.location.href);
+    url.searchParams.set('ajax', 'update-reservation');
+
+    fetch(url.toString(), {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            reservation_id: id,
+            status: 'approved'
+        })
+    })
+        .then((response) => response.json())
+        .then((result) => {
+            alert(result.message || 'Reservation updated.');
+        })
+        .catch(() => {
+            alert('Unable to update reservation status right now.');
+        });
 }
 
 function addReservationRequest() {
