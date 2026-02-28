@@ -30,7 +30,7 @@
         <tbody>
         <?php foreach ($customers as $customer): ?>
             <tr
-                data-payment="<?= htmlspecialchars($customer['paymentStatusNormalized'], ENT_QUOTES, 'UTF-8') ?>"
+                data-payment-status="<?= htmlspecialchars($customer['paymentStatusNormalized'], ENT_QUOTES, 'UTF-8') ?>"
                 data-status="<?= htmlspecialchars($customer['statusNormalized'], ENT_QUOTES, 'UTF-8') ?>"
                 data-progress="<?= (int) $customer['progressWidth'] ?>"
                 data-date="<?= htmlspecialchars($customer['createdDate'], ENT_QUOTES, 'UTF-8') ?>"
@@ -52,9 +52,9 @@
                 </td>
                 <td><span class="badge rounded-pill <?= $customer['statusBadgeClass'] ?>"><?= htmlspecialchars($customer['status'], ENT_QUOTES, 'UTF-8') ?></span></td>
                 <td>
-                    <button class="btn btn-sm btn-primary js-customer-action" data-action="view-customer" data-id="<?= (int) $customer['id'] ?>" data-name="<?= htmlspecialchars($customer['name'], ENT_QUOTES, 'UTF-8') ?>"><i class="fa fa-eye"></i></button>
-                    <button class="btn btn-sm btn-success js-customer-action" data-action="edit-customer" data-id="<?= (int) $customer['id'] ?>" data-name="<?= htmlspecialchars($customer['name'], ENT_QUOTES, 'UTF-8') ?>"><i class="fa fa-edit"></i></button>
-                    <button class="btn btn-sm btn-danger js-customer-action" data-action="delete-customer" data-id="<?= (int) $customer['id'] ?>" data-name="<?= htmlspecialchars($customer['name'], ENT_QUOTES, 'UTF-8') ?>"><i class="fa fa-trash"></i></button>
+                    <button type="button" class="btn btn-sm btn-primary js-customer-action" data-action="view-customer" data-id="<?= (int) $customer['id'] ?>" data-name="<?= htmlspecialchars($customer['name'], ENT_QUOTES, 'UTF-8') ?>"><i class="fa fa-eye"></i></button>
+                    <button type="button" class="btn btn-sm btn-success js-customer-action" data-action="edit-customer" data-id="<?= (int) $customer['id'] ?>" data-name="<?= htmlspecialchars($customer['name'], ENT_QUOTES, 'UTF-8') ?>"><i class="fa fa-edit"></i></button>
+                    <button type="button" class="btn btn-sm btn-danger js-customer-action" data-action="delete-customer" data-id="<?= (int) $customer['id'] ?>" data-name="<?= htmlspecialchars($customer['name'], ENT_QUOTES, 'UTF-8') ?>"><i class="fa fa-trash"></i></button>
                 </td>
             </tr>
         <?php endforeach; ?>

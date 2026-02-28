@@ -751,6 +751,7 @@ class ScheduleRatesModel
             'statusColor' => $statusColor,
             'tourDate' => date('Y-m-d', strtotime('+' . rand(1, 90) . ' days')),
             'duration' => rand(3, 14) . ' days',
+            'image' => 'https://picsum.photos/seed/tour' . ($index + 1) . '/800/600',
             'waitlist' => rand(0, 10),
             'documentsReady' => rand(0, $booked)
         ];

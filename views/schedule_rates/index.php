@@ -4,13 +4,18 @@
         <input type="hidden" name="month" value="<?= htmlspecialchars($currentMonth) ?>">
         <input type="hidden" name="year" value="<?= (int) $currentYear ?>">
         <input type="hidden" name="day" value="<?= (int) $selectedDay ?>">
-        <input type="text" name="search" class="search-input" placeholder="Search guests or tours..." value="<?= htmlspecialchars($searchTerm) ?>">
+        <div class="destination-filter-right">
+            <div class="table-header destination-inline-header">
+                <h2 class="section-title"><?= $isScheduleView ? 'Schedules' : 'Tour Rates &amp; Availability' ?></h2>
+            </div>
+            <div class="search-input-wrap">
+                <i class="fas fa-search search-input-icon" aria-hidden="true"></i>
+                <input type="text" name="search" class="search-input" placeholder="Search guests or tours..." value="<?= htmlspecialchars($searchTerm) ?>">
+            </div>
+        </div>
         <div class="filter-container">
             <?php if (!$isScheduleView): ?>
-            <button type="button" id="addNewTourBtn" class="btn-primary-custom">
-                <i class="fas fa-plus"></i>
-                Add New Tour
-            </button>
+            
             <?php endif; ?>
         </div>
     </form>

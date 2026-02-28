@@ -74,6 +74,28 @@ class ScheduleRatesController extends BaseController
                 ]);
                 return;
 
+            case 'load-date':
+                $month = isset($payload['month']) ? (string) $payload['month'] : date('F');
+                $year = isset($payload['year']) ? (string) $payload['year'] : date('Y');
+                $day = isset($payload['day']) ? (int) $payload['day'] : (int) date('j');
+
+                $pageData = $this->scheduleRatesModel->getPageData([
+                    'month' => $month,
+                    'year' => $year,
+                    'day' => $day
+                ]);
+
+                $this->jsonResponse([
+                    'ok' => true,
+                    'selectedDateLabel' => $pageData['selectedDateLabel'] ?? '',
+                    'selectedDateValue' => $pageData['selectedDateValue'] ?? '',
+                    'selectedDateData' => $pageData['selectedDateData'] ?? [],
+                    'selectedDateTours' => $pageData['selectedDateTours'] ?? [],
+                    'selectedDateBookings' => $pageData['selectedDateBookings'] ?? [],
+                    'selectedDateError' => $pageData['selectedDateError'] ?? ''
+                ]);
+                return;
+
             default:
                 $this->jsonResponse([
                     'ok' => false,

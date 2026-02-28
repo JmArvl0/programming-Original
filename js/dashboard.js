@@ -23,13 +23,10 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function animateCharts() {
-        const donutChart = document.querySelector('.donut-chart-progress');
-        if (donutChart) {
-            const styleAttr = donutChart.getAttribute('style') || '';
-            const match = styleAttr.match(/--percentage:\s*(\d+)/);
-            const percentage = match ? parseInt(match[1], 10) : 0;
+        document.querySelectorAll('.donut-chart-progress').forEach((donutChart) => {
+            const percentage = parseInt(donutChart.getAttribute('data-percentage') || '0', 10) || 0;
             donutChart.style.setProperty('--percentage', String(percentage));
-        }
+        });
 
         document.querySelectorAll('.progress-fill-custom').forEach((bar) => {
             const width = bar.style.width;

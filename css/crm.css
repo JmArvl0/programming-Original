@@ -89,6 +89,40 @@ input[type="checkbox"] {
     gap:10px;
 }
 
+.search-input-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 240px;
+}
+
+.search-input-wrap .search-input {
+    width: 100%;
+    padding-left: 2.25rem !important;
+}
+
+.search-input-icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #6c757d;
+    font-size: 0.9rem;
+    pointer-events: none;
+    z-index: 2;
+}
+
+@media (max-width: 768px) {
+    .left-controls {
+        width: 100%;
+        max-width: none;
+    }
+
+    .search-input-wrap {
+        width: 100%;
+    }
+}
+
 
 .crm-title{
     display:flex;

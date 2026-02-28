@@ -64,7 +64,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const selectedDateText = document.getElementById('selectedDateText');
     const availableSlots = document.getElementById('availableSlots');
     const tourListItems = document.querySelectorAll('.tour-list-item');
-    const bookedGuestItems = document.querySelectorAll('.booked-guest-item');
+    let bookedGuestItems = document.querySelectorAll('.booked-guest-item');
     const bookedGuestsTitle = document.getElementById('bookedGuestsTitle');
     const noBookingsMessage = document.getElementById('noBookingsMessage');
 
@@ -80,22 +80,138 @@ document.addEventListener('DOMContentLoaded', function () {
         window.location.href = url.toString();
     }
 
+    function escapeHtml(value) {
+        return String(value || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
     function handleDaySelection(dayElement) {
         const dayNum = dayElement.getAttribute('data-day');
         const slots = dayElement.getAttribute('data-slots');
         calendarDays.forEach((day) => day.classList.remove('selected'));
         dayElement.classList.add('selected');
 
+        // Optimistically update selected date text and slots
         if (monthSelect && yearSelect && selectedDateText && availableSlots) {
             selectedDateText.textContent = `${monthSelect.value} ${dayNum}, ${yearSelect.value}`;
             availableSlots.textContent = slots || '0/0';
         }
 
-        updateQueryParams({
-            month: monthSelect ? monthSelect.value : null,
-            year: yearSelect ? yearSelect.value : null,
-            day: dayNum
-        });
+        // Load tours for the selected date via AJAX and update the right pane
+        (async function loadDate() {
+            try {
+                const url = new URL(window.location.href);
+                url.searchParams.set('ajax', 'load-date');
+
+                const body = {
+                    month: monthSelect ? monthSelect.value : null,
+                    year: yearSelect ? yearSelect.value : null,
+                    day: dayNum
+                };
+
+                const resp = await fetch(url.toString(), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+
+                const data = await resp.json();
+                if (!resp.ok || !data.ok) {
+                    console.warn('Failed to load date:', data);
+                    return;
+                }
+
+                // Update selected date label and metrics
+                if (data.selectedDateLabel && selectedDateText) {
+                    selectedDateText.textContent = data.selectedDateLabel;
+                }
+                if (data.selectedDateData && availableSlots) {
+                    const ds = data.selectedDateData;
+                    availableSlots.textContent = (ds.totalSlots || 0) > 0 ? (ds.availableSlots || 0) + '/' + (ds.totalSlots || 0) : (ds.availableSlots || 0) + '/' + (ds.totalSlots || 0);
+                }
+
+                // Update tours count badge
+                const widgetTitle = document.querySelector('.widget-title');
+                if (widgetTitle && typeof data.selectedDateTours !== 'undefined') {
+                    const badge = widgetTitle.querySelector('.badge');
+                    if (badge) badge.textContent = (data.selectedDateTours.length || 0) + ' tours';
+                }
+
+                // Replace tour list section content
+                const tourListSection = document.querySelector('.tour-list-section');
+                if (tourListSection) {
+                    if (Array.isArray(data.selectedDateTours) && data.selectedDateTours.length > 0) {
+                        const listHtml = ['<h4 class="panel-subtitle">Scheduled Tours</h4>', '<div class="tour-cards-grid tour-list" id="tourList">'];
+                        data.selectedDateTours.forEach((tour, idx) => {
+                            const tourId = tour.tour_id || ('tour-' + idx);
+                            const status = tour.status || 'available';
+                            const name = tour.tour_name || 'N/A';
+                            const destination = tour.destination || 'N/A';
+                            const departure = tour.departure_time ? ' | ' + tour.departure_time : '';
+                            const booked = tour.booked || 0;
+                            const capacity = tour.capacity || 0;
+                            const availPct = capacity > 0 ? Math.round((booked / capacity) * 100) : 0;
+                            listHtml.push(`<div role="button" tabindex="0" class="tour-card tour-list-item ${status} ${idx===0? 'active':''}" data-tour-id="${escapeHtml(String(tourId))}">`);
+                            listHtml.push('<div class="tour-thumb"><div class="tour-thumb-placeholder"></div></div>');
+                            listHtml.push('<div class="card-header">');
+                            listHtml.push(`<div class="card-title"><span class="tour-list-name">${escapeHtml(String(name))}</span><div class="card-subtitle"><span class="tour-list-meta">${escapeHtml(String(destination))}${departure}</span></div></div>`);
+                            listHtml.push(`<div class="card-rate"><span class="tour-list-count">${booked}/${capacity} booked</span></div>`);
+                            listHtml.push('</div>');
+                            listHtml.push('<div class="card-body"><div class="card-meta">');
+                            listHtml.push(`<div class="meta-item"><div class="meta-label">Booked</div><div class="meta-value"><strong>${booked}</strong> / ${capacity}</div></div>`);
+                            listHtml.push(`<div class="meta-item"><div class="meta-label">Fill</div><div class="meta-value"><div class="progress-bar small"><div class="progress-fill" style="width: ${availPct}%"></div></div></div></div>`);
+                            listHtml.push('</div></div>');
+                            listHtml.push('</div>');
+                        });
+                        listHtml.push('</div>');
+                        tourListSection.innerHTML = listHtml.join('');
+
+                        // rebind tour item click behavior
+                        const newItems = tourListSection.querySelectorAll('.tour-list-item');
+                        newItems.forEach((item) => {
+                            item.addEventListener('click', function () {
+                                const tourId = this.getAttribute('data-tour-id') || '';
+                                const tourNameEl = this.querySelector('.tour-list-name');
+                                const tourName = tourNameEl ? tourNameEl.textContent.trim() : '';
+                                newItems.forEach((btn) => btn.classList.remove('active'));
+                                this.classList.add('active');
+                                filterBookedGuestsByTour(tourId, tourName);
+                            });
+                        });
+
+                    } else {
+                        tourListSection.innerHTML = '<h4 class="panel-subtitle">Scheduled Tours</h4><div class="no-guests-message">No tours scheduled for this date.</div>';
+                    }
+                }
+
+                // Update booked guests list if provided
+                if (Array.isArray(data.selectedDateBookings)) {
+                    // rebuild booked guests list elements if present in DOM
+                    const bookedContainer = document.querySelector('.booked-guests-list');
+                    if (bookedContainer) {
+                        if (data.selectedDateBookings.length > 0) {
+                            const rows = data.selectedDateBookings.map((r) => {
+                                const name = escapeHtml(String(r.guest_name || r.name || 'Guest'));
+                                const tourName = escapeHtml(String(r.tour_name || ''));
+                                return `<div class="booked-guest-item" data-tour-id="${escapeHtml(String(r.tour_id || ''))}"><div class="guest-name">${name}</div><div class="guest-meta">${tourName}</div></div>`;
+                            });
+                            bookedContainer.innerHTML = rows.join('');
+                            bookedGuestItems = document.querySelectorAll('.booked-guest-item');
+                        } else {
+                            bookedContainer.innerHTML = '<div class="no-guests-message">No booked guests for this date yet.</div>';
+                            bookedGuestItems = document.querySelectorAll('.booked-guest-item');
+                        }
+                    }
+                }
+
+            } catch (err) {
+                console.error('Failed loading date data', err);
+            }
+        })();
     }
 
     calendarDays.forEach((day) => {

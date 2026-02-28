@@ -50,6 +50,13 @@ class DashboardController extends BaseController
             ];
         }, $crmTrends);
 
+        // Load facilities highlights for dashboard card
+        require_once __DIR__ . '/../models/FacilitiesModel.php';
+        $facilitiesModel = new FacilitiesModel();
+        $facOverviewReservation = $facilitiesModel->getPageData(['view' => 'reservation_requests']);
+        $facOverviewAvailability = $facilitiesModel->getPageData(['view' => 'availability_overview']);
+        $facOverviewCoordination = $facilitiesModel->getPageData(['view' => 'coordination_status']);
+
         $data = [
             'pageTitle' => 'Dashboard',
             'pageSubtitle' => 'Overall Overview of Operational Status',
@@ -70,6 +77,11 @@ class DashboardController extends BaseController
             'crmTierIcons' => $crmTierIcons,
             'urgentCount' => $urgentCount,
             'departuresCount' => $departuresCount,
+            'facilitiesHighlights' => [
+                'reservation_requests' => $facOverviewReservation['overviewCards'] ?? [],
+                'availability_overview' => $facOverviewAvailability['overviewCards'] ?? [],
+                'coordination_status' => $facOverviewCoordination['overviewCards'] ?? []
+            ],
             'widgetConfig' => [
                 'lazyReady' => true,
                 'widgets' => ['urgent_queue', 'departures', 'crm_trends', 'operations_overview', 'map']

@@ -1,0 +1,152 @@
+.badge-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.dropdown-item.active .badge-dot {
+    opacity: 1;
+}
+
+.progress {
+    height: 6px;
+    margin-top: 4px;
+}
+
+.btn-group-sm > .btn, .btn-sm {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+    border-radius: 0.2rem;
+}
+
+.btn-sm i {
+    font-size: 0.875rem;
+}
+
+/* Table hover effect */
+.table-hover tbody tr:hover {
+    background-color: rgba(0,0,0,.02);
+    cursor: pointer;
+}
+
+/* Notification animations */
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+#notificationContainer .alert {
+    animation: slideIn 0.3s ease-out;
+    margin-bottom: 10px;
+    min-width: 250px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+/* Loading states */
+.btn .fa-spinner {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* Status badges */
+.badge.bg-warning {
+    background-color: #ffc107 !important;
+    color: #000;
+}
+
+.badge.bg-success {
+    background-color: #28a745 !important;
+}
+
+.badge.bg-danger {
+    background-color: #dc3545 !important;
+}
+
+.badge.bg-primary {
+    background-color: #007bff !important;
+}
+
+.badge.bg-info {
+    background-color: #17a2b8 !important;
+    color: #fff;
+}
+
+/* Payment header dropdown */
+.payment-header-dropdown .dropdown-toggle {
+    padding: 0;
+    color: #212529;
+    text-decoration: none;
+}
+
+.payment-header-dropdown .dropdown-toggle::after {
+    display: none;
+}
+
+.payment-header-dropdown .dropdown-menu {
+    min-width: 200px;
+}
+
+/* Tier badges */
+.badge.bg-warning {
+    background-color: #ffc107 !important;
+    color: #000;
+}
+
+/* Table cell alignment */
+.table td, .table th {
+    vertical-align: middle;
+}
+
+/* Progress bar in table */
+.table .progress {
+    background-color: #e9ecef;
+    border-radius: 4px;
+}
+
+/* Action buttons */
+.btn-outline-primary:hover,
+.btn-outline-success:hover,
+.btn-outline-danger:hover {
+    color: #fff;
+}
+
+/* Search input */
+.input-group-text {
+    border: 1px solid #ced4da;
+}
+
+/* Stats display */
+.stats-paid, .stats-admitted {
+    font-weight: 600;
+    color: #28a745;
+}
+
+/* Nav tabs customization */
+.nav-tabs .nav-link {
+    color: #495057;
+    border: none;
+    padding: 0.5rem 1rem;
+}
+
+.nav-tabs .nav-link:hover {
+    border: none;
+    color: #007bff;
+}
+
+.nav-tabs .nav-link.active {
+    color: #007bff;
+    font-weight: 500;
+    border-bottom: 2px solid #007bff;
+    background: transparent;
+}

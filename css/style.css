@@ -1,0 +1,53 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+:root{
+  --primary-color:#367588;
+  --accent-color:#17a2b8;
+  --success-color:#28a745;
+  --warning-color:#ffc107;
+  --danger-color:#dc3545;
+  --muted:#6b7785;
+  --bg:#f8f9fa;
+  --surface:#ffffff;
+  --glass-bg: rgba(255,255,255,0.6);
+}
+
+/* Base reset and typography */
+*{box-sizing:border-box}
+html,body{height:100%;}
+body{font-family:'Poppins', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; margin:0; background:var(--bg); color:#172b33; -webkit-font-smoothing:antialiased;}
+
+a{color:var(--primary-color); text-decoration:none}
+a:hover{text-decoration:underline}
+
+/* Content wrapper used across views */
+.content-container{padding:20px; max-width:1200px; margin:0 auto}
+
+/* Utility grid & card helpers */
+.grid{display:grid; gap:16px}
+.grid-cols-3{grid-template-columns:repeat(3,1fr)}
+.grid-cols-auto{grid-template-columns:repeat(auto-fill,minmax(280px,1fr))}
+
+.card{background:var(--surface); border-radius:12px; box-shadow:0 6px 18px rgba(28,40,50,0.06); overflow:hidden; display:flex; flex-direction:column}
+.card-body{padding:12px}
+.card-title{font-weight:600}
+.card-sub{color:var(--muted); font-size:0.95rem}
+
+/* Image helpers */
+.img-cover{width:100%; height:160px; object-fit:cover; display:block}
+
+/* Responsive helpers */
+@media (max-width: 992px){ .grid-cols-3{grid-template-columns:repeat(2,1fr)} }
+@media (max-width: 576px){ .grid-cols-3{grid-template-columns:1fr} .content-container{padding:12px} }
+
+/* Tour cards base (fallback if page-specific CSS missing) */
+.tour-cards-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:16px}
+.tour-card{background:var(--surface); border-radius:12px; overflow:hidden}
+.tour-thumb{width:100%; height:140px; background:#eef4f6}
+.tour-thumb-img{width:100%; height:100%; object-fit:cover}
+
+/* Small utilities */
+.badge{display:inline-block; padding:6px 10px; border-radius:999px; font-weight:600}
+.btn{display:inline-flex; align-items:center; gap:8px; padding:8px 12px; border-radius:8px; border:none; cursor:pointer}
+
+/* Accessibility focus */
+:focus{outline:2px solid rgba(54,117,136,0.18); outline-offset:2px}

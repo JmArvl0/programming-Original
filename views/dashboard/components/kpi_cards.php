@@ -18,7 +18,7 @@
                 <div class="donut-chart-container">
                     <svg class="donut-chart-svg" viewBox="0 0 120 120">
                         <circle class="donut-chart-bg" cx="55" cy="55" r="45"></circle>
-                        <circle class="donut-chart-progress" cx="55" cy="55" r="45" style="stroke: #f59e0b; --percentage: <?= (int) $operationalHealth ?>;"></circle>
+                        <circle class="donut-chart-progress" cx="55" cy="55" r="45" data-percentage="<?= (int) $operationalHealth; ?>"></circle>
                     </svg>
                     <div class="donut-chart-value"><?= htmlspecialchars($operationalHealthDisplay, ENT_QUOTES, 'UTF-8') ?></div>
                 </div>
@@ -64,8 +64,8 @@
 
     <!-- Documents Card -->
     <div class="col-md-3 mb-4">
-        <div class="metric-card highlight-card">
-            <div class="card-body">
+        <div class="metric-card highlight-card document-status-card">
+            <div class="card-body document-status-body">
                 <div class="card-header-section">
                     <div>
                         <div class="metric-title">Documents Status</div>
@@ -76,9 +76,12 @@
                         </svg>
                     </div>
                 </div>
-                <div class="mt-0">
+                <div class="mt-0 document-status-content">
                     <div class="urgent-document">
-                        <span class="urgent-document-text fw-bold text-danger"><?= (int) $documentStatus['urgent'] ?> <p class="urgency-status">Action Required</p></span>
+                        <div class="urgent-document-text fw-bold text-danger">
+                            <?= (int) $documentStatus['urgent'] ?>
+                            <p class="urgency-status mb-0">Action Required</p>
+                        </div>
                     </div>
                     <div class="document-status">
                         <div class="status-bars">

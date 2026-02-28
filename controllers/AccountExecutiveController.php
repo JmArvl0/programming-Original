@@ -60,6 +60,12 @@ class AccountExecutiveController extends BaseController
             $pageData['offset']
         );
 
+        $scriptVersion = @filemtime(__DIR__ . '/../js/account-executive.js');
+        $scriptPath = 'js/account-executive.js';
+        if (is_int($scriptVersion) && $scriptVersion > 0) {
+            $scriptPath .= '?v=' . $scriptVersion;
+        }
+
         $this->render('account_executive/customer_list.view', [
             'pageTitle' => 'Account Executive',
             'pageSubtitle' => 'Handles Customer Processing',
@@ -73,7 +79,7 @@ class AccountExecutiveController extends BaseController
             'perPage' => $pageData['perPage']
         ], [
             'styles' => ['css/account-executive.css'],
-            'scripts' => ['js/account-executive.js']
+            'scripts' => [$scriptPath]
         ]);
     }
 
@@ -148,12 +154,69 @@ class AccountExecutiveController extends BaseController
                 ]);
                 return;
             case 'delete-customer':
-                $this->jsonResponse([
-                    'ok' => true,
-                    'action' => 'delete-customer',
-                    'message' => 'Delete customer endpoint ready for integration.'
-                ]);
-                return;
+                $customerId = (int) ($payload['customer_id'] ?? 0);
+                if ($customerId <= 0) {
+                    $this->jsonResponse(['ok' => false, 'message' => 'Invalid customer id'], 400);
+                    return;
+                }
+
+                require_once __DIR__ . '/../config/database.php';
+                $conn = null;
+                try {
+                    $conn = getDBConnection();
+                    $conn->begin_transaction();
+
+                    $queries = [
+                        "DELETE FROM facility_coordination_status WHERE facility_reservation_id IN (SELECT id FROM facility_reservations WHERE customer_id = ?)",
+                        "DELETE FROM facility_reservations WHERE customer_id = ?",
+                        "DELETE FROM payment_reminders WHERE payment_id IN (SELECT id FROM payments WHERE customer_id = ?)",
+                        "DELETE FROM payments WHERE customer_id = ?",
+                        "DELETE FROM passport_documents WHERE passport_application_id IN (SELECT id FROM passport_applications WHERE customer_id = ?)",
+                        "DELETE FROM passport_applications WHERE customer_id = ?",
+                        "DELETE FROM bookings WHERE guest_id IN (SELECT id FROM guests WHERE customer_id = ?)",
+                        "DELETE FROM guests WHERE customer_id = ?",
+                        "DELETE FROM crm_interactions WHERE customer_id = ?",
+                        "DELETE FROM customers WHERE id = ?"
+                    ];
+
+                    foreach ($queries as $sql) {
+                        $stmt = $conn->prepare($sql);
+                        if ($stmt === false) {
+                            throw new RuntimeException('Prepare failed: ' . $conn->error);
+                        }
+                        if (!$stmt->bind_param('i', $customerId)) {
+                            throw new RuntimeException('Bind failed: ' . $stmt->error);
+                        }
+                        if (!$stmt->execute()) {
+                            throw new RuntimeException('Execute failed: ' . $stmt->error);
+                        }
+                        $stmt->close();
+                    }
+
+                    $conn->commit();
+
+                    if ($this->notificationsModel instanceof NotificationsModel) {
+                        $this->notificationsModel->createNotification(
+                            'customer_deleted',
+                            'Admin',
+                            $customerId,
+                            'Customer #' . $customerId . ' was deleted.'
+                        );
+                    }
+
+                    $this->jsonResponse([
+                        'ok' => true,
+                        'action' => 'delete-customer',
+                        'message' => 'Customer deleted successfully.'
+                    ]);
+                    return;
+                } catch (Throwable $e) {
+                    if ($conn instanceof mysqli) {
+                        @$conn->rollback();
+                    }
+                    $this->jsonResponse(['ok' => false, 'message' => $e->getMessage() ?: 'Delete failed'], 500);
+                    return;
+                }
             case 'send-reminder':
                 $customerIds = $payload['customer_ids'] ?? [];
                 $totalTargets = is_array($customerIds) ? count($customerIds) : 0;

@@ -128,6 +128,8 @@
 
 .donut-chart-progress {
     fill: none;
+    stroke: #0ea5e9;
+    --percentage: 0;
     stroke-width: 12;
     stroke-linecap: round;
     stroke-dasharray: 314;
@@ -254,6 +256,19 @@
     margin-top: 20px;
 }
 
+.metric-card.document-status-card .document-status-body {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.metric-card.document-status-card .document-status-content {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
 .status-bars {
     display: flex;
     gap: 4px;
@@ -320,7 +335,7 @@
     justify-content: center;
     align-items: center;
     color: #ffc107;
-    font-size: 30px;
+    font-size: 20px;
     letter-spacing: 2px;
 }
 
@@ -367,10 +382,10 @@
 /* Map Container */
 .map-container {
     background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-    border-radius: 12px;
-    padding: 30px;
+    border-radius: 20px;
+    padding: 50px;
     text-align: center;
-    margin-bottom: 20px;
+    margin-bottom: 30px;
 }
 
 /* Progress Bar Colors */
@@ -398,6 +413,59 @@
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 12px;
+}
+
+/* Facilities highlights (small cards inside the dashboard facilities card) */
+.facilities-highlights .metric-card.small {
+    border-radius: 50px;
+    border: 1px solid #eef1f6;
+    box-shadow: none;
+    background: #ffffff;
+}
+
+.facilities-highlights .metric-card.small .card-body {
+    padding: 12px 14px;
+    text-align: center;
+}
+
+.facilities-highlights .metric-title {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: #495057;
+    font-weight: 700;
+}
+
+.facilities-highlights .card-header-section .metric-title {
+    margin-bottom: 6px;
+}
+
+.facilities-highlights .card-header-section a {
+    color: var(--primary-blue);
+    text-decoration: none;
+    font-size: 12px;
+}
+
+.facilities-highlights .metric-card.small .value {
+    font-size: 28px;
+    font-weight: 700;
+    color: #212529;
+}
+
+.facilities-highlights .metric-card.small .text-muted.small {
+    font-size: 12px;
+    color: var(--text-light);
+}
+
+/* Slight spacing adjustments inside the dashboard card */
+.metric-card.highlight-card .facilities-highlights .row {
+    gap: 12px;
+}
+
+@media (max-width: 767px) {
+    .facilities-highlights .metric-card.small .value {
+        font-size: 22px;
+    }
 }
 
 .crm-tier-box {
@@ -578,3 +646,305 @@ table {
         font-size: 18px;
     }
 }
+
+/* Expand Facilities Reservation card to use more space */
+
+
+.metric-card.highlight-card .card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-height: 300px; /* allow card to appear larger */
+}
+
+/* Keep KPI card body flush with full highlight card height */
+.metric-card.highlight-card {
+    display: flex;
+    flex-direction: column;
+}
+
+.metric-card.highlight-card > .card-body {
+    flex: 1 1 auto;
+    height: 100%;
+}
+
+.metric-card.highlight-card .facilities-highlights .row {
+    margin: 0 -8px;
+}
+
+.facilities-highlights .col-md-6 {
+    padding: 0 8px;
+}
+
+.facilities-highlights .donut-chart-container {
+    width: 220px;
+    height: 220px;
+}
+
+.facilities-highlights .donut-chart-value {
+    font-size: 34px;
+}
+
+.facilities-highlights .donut-chart-label {
+    font-size: 14px;
+}
+
+.facilities-highlights .metric-card.small {
+    height: 100%;
+}
+
+.facilities-highlights .metric-card.small .card-body {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    min-height: 100px;
+}
+
+.facilities-highlights .metric-card.small .value {
+    font-size: 24px;
+}
+
+/* Make the right column tiles breathe and occupy vertical space */
+.facilities-highlights .col-md-6 > .row {
+    height: 100%;
+}
+
+@media (max-width: 991px) {
+    .facilities-highlights .donut-chart-container {
+        width: 180px;
+        height: 180px;
+    }
+    .facilities-highlights .donut-chart-value { font-size: 28px; }
+}
+
+/* Make Facilities Reservation card and children stretch to fill available space */
+[data-widget="operations_overview"] {
+    display: block;
+}
+
+[data-widget="operations_overview"].operations-overview-widget {
+    width: 100%;
+    margin-bottom: 1.5rem;
+    flex: 0 0 auto;
+    max-width: 100%;
+}
+
+[data-widget="operations_overview"] > .metric-card {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+[data-widget="operations_overview"] > .metric-card.highlight-card {
+    padding: 0;
+}
+
+[data-widget="operations_overview"] > .metric-card > .operations-overview-body {
+    flex: 1 1 auto;
+    height: 100%;
+    min-height: 100%;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+    align-items: stretch;
+    padding: 30px;
+    min-height: 420px;
+}
+
+[data-widget="operations_overview"] .operations-overview-header {
+    margin-bottom: 1rem;
+}
+
+[data-widget="operations_overview"] .facilities-highlights {
+    flex: 1 1 auto;
+    width: 100%;
+}
+
+[data-widget="operations_overview"] .facilities-layout {
+    display: flex;
+    align-items: stretch;
+    gap: 22px;
+    height: 100%;
+}
+
+[data-widget="operations_overview"] .facilities-chart-col {
+    flex: 0 0 44%;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 8px 4px;
+}
+
+[data-widget="operations_overview"] .facilities-stats-col {
+    flex: 1 1 56%;
+    display: flex;
+    flex-direction: column;
+    justify-content: stretch;
+    align-items: center;
+    align-self: stretch;
+}
+
+[data-widget="operations_overview"] .facilities-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+    width: 100%;
+    flex: 1 1 auto;
+}
+
+[data-widget="operations_overview"] .facilities-active-row {
+    margin-top: 14px;
+    width: 100%;
+}
+
+[data-widget="operations_overview"] .donut-chart-container {
+    margin: 0 auto;
+    width: 240px;
+    height: 240px;
+}
+
+[data-widget="operations_overview"] .operations-overview-donut {
+    width: 196px;
+    height: 196px;
+}
+
+[data-widget="operations_overview"] .donut-chart-value {
+    font-size: 38px;
+    line-height: 1;
+}
+
+[data-widget="operations_overview"] .donut-chart-label {
+    margin-top: 10px;
+    font-weight: 600;
+}
+
+[data-widget="operations_overview"] .facilities-chart-col .text-muted.small {
+    font-size: 13px;
+}
+
+[data-widget="operations_overview"] .metric-card.small {
+    height: 100%;
+    display: flex;
+    border-radius: 14px;
+    border: 1px solid #e8edf3;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+    background: #fff;
+}
+
+[data-widget="operations_overview"] .facilities-stat-item .metric-card.small {
+    min-height: 156px;
+}
+
+[data-widget="operations_overview"] .facilities-active-row .metric-card.small {
+    width: 100%;
+    min-height: 142px;
+}
+
+[data-widget="operations_overview"] .metric-card.small .card-body {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 6px;
+    padding: 20px 20px;
+    min-height: 1800px;
+    text-align: center;
+}
+
+[data-widget="operations_overview"] .metric-card.small .card-body.active-ops-body {
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 6px;
+    min-height: 120px;
+}
+
+[data-widget="operations_overview"] .facilities-stat-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #eef6ff;
+    color: #0f6fd8;
+    font-size: 18px;
+    margin-bottom: 4px;
+}
+
+[data-widget="operations_overview"] .metric-card.small .value {
+    font-size: 34px;
+    line-height: 1.1;
+    margin-top: 0.35rem;
+}
+
+[data-widget="operations_overview"] .metric-card.small .metric-title {
+    font-size: 12px;
+    letter-spacing: 0.4px;
+    margin-bottom: 0;
+}
+
+[data-widget="operations_overview"] .metric-card.small .text-muted.small {
+    font-size: 12px;
+    margin-top: 0;
+}
+
+[data-widget="operations_overview"] .facilities-active-row .metric-card.small .value {
+    font-size: 36px;
+}
+
+@media (max-width: 767px) {
+    [data-widget="operations_overview"] > .metric-card > .operations-overview-body {
+        flex-direction: column;
+        gap: 16px;
+        padding: 22px;
+        min-height: auto;
+    }
+
+    [data-widget="operations_overview"] .facilities-layout {
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    [data-widget="operations_overview"] .facilities-chart-col,
+    [data-widget="operations_overview"] .facilities-stats-col {
+        flex: 1 1 auto;
+        width: 100%;
+    }
+
+    [data-widget="operations_overview"] .facilities-stats-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+    }
+
+    [data-widget="operations_overview"] .donut-chart-container {
+        width: 160px;
+        height: 160px;
+    }
+    [data-widget="operations_overview"] .operations-overview-donut {
+        width: 170px;
+        height: 170px;
+    }
+    [data-widget="operations_overview"] .metric-card.small .card-body {
+        min-height: 114px;
+        padding: 16px;
+    }
+    [data-widget="operations_overview"] .metric-card.small .value {
+        font-size: 28px;
+    }
+    [data-widget="operations_overview"] .facilities-active-row .metric-card.small .value {
+        font-size: 30px;
+    }
+    [data-widget="operations_overview"] .donut-chart-value { font-size: 26px; }
+}
+
+@media (min-width: 768px) {
+    [data-widget="operations_overview"].operations-overview-widget {
+        width: 66.66666667%;
+    }
+}
+

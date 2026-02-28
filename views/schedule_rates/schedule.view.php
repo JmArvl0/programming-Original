@@ -1,8 +1,4 @@
 <div class="schedule-view-wrap">
-    <div class="table-header">
-        <h2 class="section-title">Schedules</h2>
-    </div>
-
     <div class="calendar-container">
         <?php require __DIR__ . '/components/calendar.php'; ?>
 
