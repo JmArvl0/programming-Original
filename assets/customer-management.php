@@ -267,50 +267,48 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // ========== DELETE CUSTOMER ==========
     function deleteCustomer(id, name) {
-        if (!confirm(`Are you sure you want to delete "${name}"? This action cannot be undone.`)) {
-            return;
-        }
-        
-        const deleteBtn = document.querySelector(`button[data-id="${id}"][data-action="delete"]`);
-        const originalHtml = deleteBtn.innerHTML;
-        deleteBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i>';
-        deleteBtn.disabled = true;
-        
-        fetch('api/delete-customer.php', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ id: id })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                showNotification('success', `"${name}" deleted successfully`);
-                
-                // Remove row with animation
-                const row = document.querySelector(`tr[data-id="${id}"]`);
-                if (row) {
-                    row.style.transition = 'opacity 0.3s';
-                    row.style.opacity = '0';
-                    setTimeout(() => {
-                        row.remove();
-                        updatePaginationAfterDelete();
-                        updateStats();
-                    }, 300);
+        showConfirm(`Are you sure you want to delete "${name}"? This action cannot be undone.`, function () {
+            const deleteBtn = document.querySelector(`button[data-id="${id}"][data-action="delete"]`);
+            const originalHtml = deleteBtn.innerHTML;
+            deleteBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i>';
+            deleteBtn.disabled = true;
+
+            fetch('api/delete-customer.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ id: id })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showNotification('success', `"${name}" deleted successfully`);
+
+                    // Remove row with animation
+                    const row = document.querySelector(`tr[data-id="${id}"]`);
+                    if (row) {
+                        row.style.transition = 'opacity 0.3s';
+                        row.style.opacity = '0';
+                        setTimeout(() => {
+                            row.remove();
+                            updatePaginationAfterDelete();
+                            updateStats();
+                        }, 300);
+                    }
+                } else {
+                    throw new Error(data.message || 'Delete failed');
                 }
-            } else {
-                throw new Error(data.message || 'Delete failed');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showNotification('error', 'Delete failed: ' + error.message);
-        })
-        .finally(() => {
-            deleteBtn.innerHTML = originalHtml;
-            deleteBtn.disabled = false;
-        });
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showNotification('error', 'Delete failed: ' + error.message);
+            })
+            .finally(() => {
+                deleteBtn.innerHTML = originalHtml;
+                deleteBtn.disabled = false;
+            });
+        }, { title: 'Confirm Delete', okText: 'Delete', okClass: 'btn btn-danger' });
     }
     
     // ========== BULK REMINDERS ==========

@@ -33,6 +33,8 @@ document.addEventListener('DOMContentLoaded', function() {
             showToast('Error', 'Invalid customer ID', 'error');
             return;
         }
+        const titleEl = document.getElementById('viewModalCustomerName');
+        if (titleEl) titleEl.textContent = name || '';
         
         // Show modal with loading
         document.getElementById('viewModalBody').innerHTML = `
@@ -545,7 +547,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     break;
             }
             
-            if (!confirm(confirmMessage)) return;
+            const confirmed = await confirmAction(confirmMessage);
+            if (!confirmed) return;
             
             // Show loading
             const btn = this;
@@ -586,13 +589,14 @@ document.addEventListener('DOMContentLoaded', function() {
     // ========== SEND REMINDER BUTTON ==========
     const sendReminderBtn = document.getElementById('sendReminderBtn');
     if (sendReminderBtn) {
-        sendReminderBtn.addEventListener('click', function() {
+        sendReminderBtn.addEventListener('click', async function() {
             if (selectedIds.length === 0) {
                 showToast('Warning', 'Please select customers to send reminders', 'warning');
                 return;
             }
             
-            if (!confirm(`Send reminders to ${selectedIds.length} selected customer(s)?`)) return;
+            const ok = await confirmAction(`Send reminders to ${selectedIds.length} selected customer(s)?`);
+            if (!ok) return;
             
             const btn = this;
             const originalText = btn.innerHTML;
@@ -674,6 +678,62 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // ========== TOAST NOTIFICATION ==========
+        // ========== CONFIRM ACTION (no native alert) ==========
+        function confirmAction(message, title = 'Confirm') {
+                return new Promise(resolve => {
+                        let modalEl = document.getElementById('aeConfirmModal');
+                        if (!modalEl) {
+                                const tpl = `
+                                        <div class="modal fade" id="aeConfirmModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+                                            <div class="modal-dialog modal-dialog-centered">
+                                                <div class="modal-content">
+                                                    <div class="modal-header">
+                                                        <h5 class="modal-title ae-confirm-title"></h5>
+                                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                    </div>
+                                                    <div class="modal-body ae-confirm-body"></div>
+                                                    <div class="modal-footer">
+                                                        <button type="button" class="btn btn-secondary ae-confirm-cancel" data-bs-dismiss="modal">Cancel</button>
+                                                        <button type="button" class="btn btn-primary ae-confirm-ok">Confirm</button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                `;
+                                document.body.insertAdjacentHTML('beforeend', tpl);
+                                modalEl = document.getElementById('aeConfirmModal');
+                        }
+
+                        const modalTitle = modalEl.querySelector('.ae-confirm-title');
+                        const modalBody = modalEl.querySelector('.ae-confirm-body');
+                        const okBtn = modalEl.querySelector('.ae-confirm-ok');
+                        const cancelBtn = modalEl.querySelector('.ae-confirm-cancel');
+
+                        modalTitle.textContent = title;
+                        modalBody.textContent = message;
+
+                        const bsModal = new bootstrap.Modal(modalEl);
+
+                        const onOk = () => { cleanup(true); };
+                        const onCancel = () => { cleanup(false); };
+                        const onHidden = () => { cleanup(false); };
+
+                        function cleanup(result) {
+                                okBtn.removeEventListener('click', onOk);
+                                cancelBtn.removeEventListener('click', onCancel);
+                                modalEl.removeEventListener('hidden.bs.modal', onHidden);
+                                try { bsModal.hide(); } catch (e) {}
+                                resolve(result);
+                        }
+
+                        okBtn.addEventListener('click', onOk);
+                        cancelBtn.addEventListener('click', onCancel);
+                        modalEl.addEventListener('hidden.bs.modal', onHidden);
+
+                        bsModal.show();
+                });
+        }
+
     function showToast(title, message, type = 'info') {
         const toastEl = document.getElementById('liveToast');
         const toastTitle = document.getElementById('toastTitle');

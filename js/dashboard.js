@@ -65,7 +65,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 actionLabel: 'Mark as Reviewed',
                 actionClass: 'btn btn-primary',
                 onAction: function () {
-                    alert(`Marked "${name}" as reviewed`);
+                    showSuccess(`Marked "${name}" as reviewed`);
                 }
             });
         });
@@ -93,7 +93,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 onAction: function () {
                     const messageInput = document.getElementById('reminderMessage');
                     const message = messageInput ? messageInput.value : '';
-                    alert(`Reminder sent to ${name}${message ? ' with message: ' + message : ''}`);
+                    showSuccess(`Reminder sent to ${name}${message ? ' with message: ' + message : ''}`);
                 }
             });
         });
@@ -132,7 +132,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     actionLabel: 'Open Full Tracking',
                     actionClass: 'btn btn-primary',
                     onAction: function () {
-                        alert(`Opening full tracking for ${name}`);
+                        showInfo(`Opening full tracking for ${name}`);
                     }
                 });
             }
@@ -149,7 +149,7 @@ document.addEventListener('DOMContentLoaded', function () {
             setTimeout(() => {
                 this.textContent = originalText;
                 this.disabled = false;
-                alert('Map locations refreshed');
+                showSuccess('Map locations refreshed');
             }, 900);
         });
     }

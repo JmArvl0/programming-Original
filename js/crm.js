@@ -14,14 +14,15 @@ document.addEventListener('DOMContentLoaded', function () {
     const newsletterBtn = document.querySelector('.crm-btn-news');
     if (newsletterBtn) {
         newsletterBtn.addEventListener('click', function () {
-            alert('Sending newsletter to selected segment...');
+            showSuccess('Sending newsletter to selected segment...');
         });
     }
 
     const exportBtn = document.querySelector('.crm-btn-export');
     if (exportBtn) {
         exportBtn.addEventListener('click', function () {
-            alert('Exporting CRM report...');
+            showSuccess('Exporting CRM report...');
         });
     }
 });
+

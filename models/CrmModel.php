@@ -1,4 +1,67 @@
 <?php
+require_once __DIR__ . '/../config/database.php';
+
+class CRMModel
+{
+    public static function getCompletedBookingCount(int $customerId): int
+    {
+        $conn = getDBConnection();
+        if (!($conn instanceof mysqli)) {
+            return 0;
+        }
+
+        $stmt = $conn->prepare(
+            "SELECT COUNT(*) AS cnt FROM crm_bookings WHERE customer_id = ? AND completed = 1"
+        );
+        $count = 0;
+        if ($stmt) {
+            $stmt->bind_param('i', $customerId);
+            $stmt->execute();
+            $row = $stmt->get_result()->fetch_assoc();
+            $count = (int) ($row['cnt'] ?? 0);
+            $stmt->close();
+        }
+        closeDBConnection($conn);
+        return $count;
+    }
+
+    public static function calculateTierByCount(int $count): string
+    {
+        if ($count >= 6) return 'VIP';
+        if ($count >= 3) return 'Gold';
+        if ($count >= 1) return 'Silver';
+        return 'Newcomer';
+    }
+
+    // Dynamic approach: compute on request
+    public static function getTierForCustomer(int $customerId): string
+    {
+        $count = self::getCompletedBookingCount($customerId);
+        return self::calculateTierByCount($count);
+    }
+
+    // Stored approach: update customers.tier column (optional)
+    public static function updateStoredTier(int $customerId): bool
+    {
+        $tier = self::getTierForCustomer($customerId);
+        $conn = getDBConnection();
+        if (!($conn instanceof mysqli)) {
+            return false;
+        }
+        // Make sure customers table has `tier` VARCHAR(32) if using stored approach
+        $stmt = $conn->prepare("UPDATE customers SET tier = ? WHERE id = ?");
+        if (!$stmt) {
+            closeDBConnection($conn);
+            return false;
+        }
+        $stmt->bind_param('si', $tier, $customerId);
+        $ok = $stmt->execute();
+        $stmt->close();
+        closeDBConnection($conn);
+        return (bool) $ok;
+    }
+}
+<?php
 
 class CrmModel
 {

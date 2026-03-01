@@ -57,9 +57,9 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Show alert or handle action
             if (action === 'View' || action === 'Review Document') {
-                alert(`Viewing details for: ${name}`);
+                showInfo(`Viewing details for: ${name}`);
             } else if (action === 'Remind') {
-                alert(`Sending reminder to: ${name}`);
+                showInfo(`Sending reminder to: ${name}`);
             }
         });
     });
@@ -99,7 +99,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const filterButtons = document.querySelectorAll('.filter-btn');
     filterButtons.forEach(btn => {
         btn.addEventListener('click', function() {
-            alert('Filter options will be available here');
+            showInfo('Filter options will be available here');
         });
     });
 
@@ -107,7 +107,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const profilePics = document.querySelectorAll('.profile-pic, .user-profile');
     profilePics.forEach(pic => {
         pic.addEventListener('click', function() {
-            alert('Profile menu');
+            showInfo('Profile menu');
         });
     });
 
@@ -117,11 +117,11 @@ document.addEventListener('DOMContentLoaded', function() {
         btn.addEventListener('click', function() {
             const buttonText = this.textContent.trim();
             if (buttonText === 'Request all Information') {
-                alert('Requesting information from all selected customers...');
+                showInfo('Requesting information from all selected customers...');
             } else if (buttonText === 'Send Payment Reminder') {
-                alert('Sending payment reminders to selected customers...');
+                showInfo('Sending payment reminders to selected customers...');
             } else {
-                alert(`Action: ${buttonText}`);
+                showInfo(`Action: ${buttonText}`);
             }
         });
     });
@@ -328,7 +328,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
         } catch (error) {
-            alert('Unable to mark all messages as read.');
+            showError('Unable to mark all messages as read.');
         }
     }
 
@@ -340,7 +340,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 await refreshRecentNotifications();
             }
         } catch (error) {
-            alert('Unable to mark all notifications as read.');
+            showError('Unable to mark all notifications as read.');
         }
     }
 

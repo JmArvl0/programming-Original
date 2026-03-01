@@ -49,6 +49,12 @@ class PassportVisaController extends BaseController
             $pageData['offset']
         );
 
+        $scriptVersion = @filemtime(__DIR__ . '/../js/passport-visa.js');
+        $scriptPath = 'js/passport-visa.js';
+        if (is_int($scriptVersion) && $scriptVersion > 0) {
+            $scriptPath .= '?v=' . $scriptVersion;
+        }
+
         $this->render('passport/applicant_list.view', [
             'pageTitle' => 'Passport & Visa',
             'pageSubtitle' => 'Manage Passport & Visa Processing',
@@ -60,7 +66,7 @@ class PassportVisaController extends BaseController
             'perPage' => $pageData['perPage']
         ], [
             'styles' => ['css/passport-visa.css'],
-            'scripts' => ['js/passport-visa.js']
+            'scripts' => [$scriptPath]
         ]);
     }
 
@@ -91,14 +97,12 @@ class PassportVisaController extends BaseController
     {
         $documentsText = (string) ($applicant['documents']['text'] ?? '');
         $applicationText = (string) ($applicant['application']['text'] ?? '');
-        $priority = (string) ($applicant['priority'] ?? 'Low');
 
         return $applicant + [
             'documentsNormalized' => $this->normalizeStatus($documentsText),
             'applicationNormalized' => $this->normalizeStatus($applicationText),
             'documentsBadgeClass' => $this->badgeClassForStatus($documentsText),
-            'applicationBadgeClass' => $this->badgeClassForStatus($applicationText),
-            'priorityClass' => 'priority-' . strtolower($priority)
+            'applicationBadgeClass' => $this->badgeClassForStatus($applicationText)
         ];
     }
 
@@ -122,6 +126,39 @@ class PassportVisaController extends BaseController
         $payload = $this->readJsonBody();
 
         switch ($action) {
+            case 'fetch-applicant-detail':
+                $applicantId = (int) ($payload['applicantId'] ?? ($_GET['applicantId'] ?? 0));
+                if ($applicantId <= 0) {
+                    $this->jsonResponse([
+                        'ok' => false,
+                        'message' => 'Invalid applicant id.'
+                    ], 400);
+                    return;
+                }
+
+                $applicant = $this->passportVisaModel->getApplicantById($applicantId);
+                if ($applicant === null) {
+                    $this->jsonResponse([
+                        'ok' => false,
+                        'message' => 'Applicant not found.'
+                    ], 404);
+                    return;
+                }
+
+                $this->jsonResponse([
+                    'ok' => true,
+                    'data' => $applicant
+                ]);
+                return;
+            case 'update-applicant':
+                $applicantId = (int) ($payload['applicantId'] ?? 0);
+                $result = $this->passportVisaModel->updateApplicantById($applicantId, $payload);
+                if (!($result['ok'] ?? false)) {
+                    $this->jsonResponse($result, 400);
+                    return;
+                }
+                $this->jsonResponse($result);
+                return;
             case 'upload-document':
                 $this->jsonResponse([
                     'ok' => true,

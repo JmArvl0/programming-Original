@@ -1,468 +1,528 @@
-// Customer Management JavaScript
-document.addEventListener('DOMContentLoaded', function() {
-    
-    // ========== SELECT ALL CHECKBOXES ==========
+// Account Executive Customer List Script
+document.addEventListener('DOMContentLoaded', function () {
     const selectAllCheckbox = document.getElementById('selectAll');
-    const rowCheckboxes = document.querySelectorAll('.row-checkbox');
-    
+    const customerModalEl = document.getElementById('customerModal');
+    const customerModal = customerModalEl ? new bootstrap.Modal(customerModalEl) : null;
+
+    const modalTitle = document.getElementById('customerModalTitle');
+    const overviewSection = document.getElementById('customerOverviewSection');
+    const overviewBody = document.getElementById('customerOverviewBody');
+    const modalForm = document.getElementById('customerModalForm');
+    const editBtn = document.getElementById('customerModalEditBtn');
+    const saveBtn = document.getElementById('customerModalSaveBtn');
+
+    const idInput = document.getElementById('customerModalId');
+    const nameInput = document.getElementById('customerModalName');
+    const emailInput = document.getElementById('customerModalEmail');
+    const phoneInput = document.getElementById('customerModalPhone');
+    const progressInput = document.getElementById('customerModalProgress');
+    const remarksInput = document.getElementById('customerModalRemarks');
+    const refundInput = document.getElementById('customerModalRefund');
+
+    let activeRow = null;
+    let activeCustomerId = null;
+    let activeCustomerName = '';
+
     if (selectAllCheckbox) {
-        selectAllCheckbox.addEventListener('change', function() {
-            rowCheckboxes.forEach(checkbox => {
+        selectAllCheckbox.addEventListener('change', function () {
+            document.querySelectorAll('.row-checkbox').forEach(function (checkbox) {
                 checkbox.checked = selectAllCheckbox.checked;
             });
         });
-        
-        // Update "select all" when individual checkboxes change
-        rowCheckboxes.forEach(checkbox => {
-            checkbox.addEventListener('change', function() {
-                const allChecked = Array.from(rowCheckboxes).every(cb => cb.checked);
-                const anyChecked = Array.from(rowCheckboxes).some(cb => cb.checked);
-                
-                selectAllCheckbox.checked = allChecked;
-                selectAllCheckbox.indeterminate = !allChecked && anyChecked;
-            });
+    }
+
+    document.addEventListener('change', function (evt) {
+        if (!evt.target.matches('.row-checkbox')) {
+            return;
+        }
+        updateSelectAllState();
+    });
+
+    document.addEventListener('click', function (evt) {
+        const btn = evt.target.closest('.js-customer-action');
+        if (!btn) {
+            return;
+        }
+
+        evt.preventDefault();
+
+        const action = btn.dataset.action || '';
+        const customerId = btn.dataset.id || '';
+        const customerName = btn.dataset.name || 'Customer';
+        const row = btn.closest('tr');
+
+        if (action === 'view-customer') {
+            openViewMode(customerId, customerName, row);
+            return;
+        }
+
+        if (action === 'edit-customer') {
+            openEditMode(customerId, customerName, row);
+            return;
+        }
+
+        if (action === 'delete-customer') {
+            handleDeleteCustomer(customerId, row);
+        }
+    });
+
+    if (editBtn) {
+        editBtn.addEventListener('click', function () {
+            if (!activeCustomerId) {
+                return;
+            }
+            openEditMode(activeCustomerId, activeCustomerName, activeRow, true);
         });
     }
-    
-    // ========== CUSTOMER ACTION BUTTONS ==========
-    const actionButtons = document.querySelectorAll('.js-customer-action');
-    
-        // Use event delegation for action buttons so dynamically added rows still work
-        document.addEventListener('click', function (evt) {
-            const btn = evt.target.closest && evt.target.closest('.js-customer-action');
-            if (!btn) return;
-            evt.preventDefault();
 
-            (async function () {
-                try {
-                    const action = btn.dataset.action || '';
-                    const customerId = btn.dataset.id || '';
-                    const customerName = btn.dataset.name || 'Customer';
-                    const row = btn.closest('tr');
+    if (saveBtn) {
+        saveBtn.addEventListener('click', async function () {
+            if (!idInput || !activeRow) {
+                return;
+            }
 
-                    if (action === 'view-customer' || action === 'edit-customer') {
-                        const modal = document.getElementById('customerModal');
-                        if (!modal) { alert('Customer modal not found.'); return; }
+            const payload = {
+                customer_id: idInput.value,
+                name: nameInput ? nameInput.value.trim() : '',
+                email: emailInput ? emailInput.value.trim() : '',
+                phone: phoneInput ? phoneInput.value.trim() : '',
+                remarks: remarksInput ? remarksInput.value.trim() : '',
+                refund_flag: refundInput && refundInput.checked ? 1 : 0
+            };
 
-                        const idInput = document.getElementById('customerModalId');
-                        const nameInput = document.getElementById('customerModalName');
-                        const destInput = document.getElementById('customerModalDestination');
-                        const paymentSelect = document.getElementById('customerModalPayment');
-                        const progressInput = document.getElementById('customerModalProgress');
-                        const statusSelect = document.getElementById('customerModalStatus');
-                        const editBtn = document.getElementById('customerModalEditBtn');
-                        const saveBtn = document.getElementById('customerModalSaveBtn');
+            const originalHtml = saveBtn.innerHTML;
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = '<i class="fa fa-spinner fa-spin me-1"></i> Saving...';
 
-                        idInput.value = customerId;
-                        nameInput.value = customerName;
-                        destInput.value = row ? (row.cells[3] ? row.cells[3].innerText.trim() : '') : '';
-                        paymentSelect.value = row ? (row.dataset.paymentStatus || '') : '';
-                        progressInput.value = row ? (row.dataset.progress || 0) : 0;
-                        statusSelect.value = row ? (row.dataset.status || '') : '';
-
-                        [nameInput, destInput, progressInput].forEach(i => i && (i.readOnly = true));
-                        [paymentSelect, statusSelect].forEach(s => s && (s.disabled = true));
-                        editBtn.classList.remove('d-none');
-                        saveBtn.classList.add('d-none');
-
-                        const bsModal = new bootstrap.Modal(modal);
-                        bsModal.show();
-
-                        editBtn.onclick = function () {
-                            [nameInput, destInput, progressInput].forEach(i => i && (i.readOnly = false));
-                            [paymentSelect, statusSelect].forEach(s => s && (s.disabled = false));
-                            editBtn.classList.add('d-none');
-                            saveBtn.classList.remove('d-none');
-                        };
-
-                        saveBtn.onclick = async function () {
-                            const payload = {
-                                customer_id: idInput.value,
-                                name: nameInput.value.trim(),
-                                destination: destInput.value.trim(),
-                                payment: paymentSelect.value,
-                                progress: parseInt(progressInput.value || '0', 10),
-                                status: statusSelect.value
-                            };
-
-                            try {
-                                const result = await postAjax('edit-customer', payload);
-                                alert(result.message || 'Customer updated.');
-                                if (row) {
-                                    row.cells[2].innerText = payload.name;
-                                    row.cells[3].innerText = payload.destination;
-                                    row.dataset.paymentStatus = payload.payment;
-                                    row.dataset.progress = String(payload.progress);
-                                    row.dataset.status = payload.status;
-                                    const progressCell = row.cells[6];
-                                    if (progressCell) {
-                                        progressCell.innerHTML = payload.progress + '%\\n' +
-                                            '<div class="progress">' +
-                                            '<div class="progress-bar bg-success" style="width:' + payload.progress + '%"></div>' +
-                                            '</div>';
-                                    }
-                                    const statusCell = row.cells[7];
-                                    if (statusCell) {
-                                        const badgeClass = payload.status === 'finished' ? 'bg-success' : (payload.status === 'processing' ? 'bg-primary' : (payload.status === 'cancelled' ? 'bg-danger' : 'bg-secondary'));
-                                        statusCell.innerHTML = '<span class="badge rounded-pill ' + badgeClass + '">' + payload.status + '</span>';
-                                    }
-                                }
-                            } catch (err) {
-                                alert(err.message || 'Update failed');
-                            } finally {
-                                try { bsModal.hide(); } catch (e) {}
-                            }
-                        };
-
-                        return;
-                    }
-
-                    if (action === 'delete-customer') {
-                        if (!window.confirm('Delete customer #' + customerId + '?')) return;
-                        try {
-                            const result = await postAjax(action, { customer_id: customerId });
-                            alert(result.message || 'Customer deleted.');
-                            if (row && row.parentNode) row.parentNode.removeChild(row);
-                        } catch (error) {
-                            alert(error.message || 'Delete failed');
-                        }
-                        return;
-                    }
-                } catch (e) {
-                    console.error('Action handler error', e);
-                    alert('An error occurred. See console for details.');
+            try {
+                const result = await postAjax('edit-customer', payload);
+                if (!(result && (result.ok || result.success))) {
+                    throw new Error((result && result.message) || 'Update failed');
                 }
-            })();
-        });
-    
-    // ========== VIEW CUSTOMER FUNCTION ==========
-    function viewCustomer(id, name) {
-        console.log(`Viewing customer: ${name} (ID: ${id})`);
-        
-        // Option 1: Redirect to customer detail page
-        // window.location.href = `/customer/view.php?id=${id}`;
-        
-        // Option 2: Open in modal (if you have a modal system)
-        showCustomerModal('view', id, name);
-        
-        // Option 3: Fetch and display customer data
-        fetchCustomerData('view', id, name);
-    }
-    
-    // ========== EDIT CUSTOMER FUNCTION ==========
-    function editCustomer(id, name) {
-        console.log(`Editing customer: ${name} (ID: ${id})`);
-        
-        // Option 1: Redirect to edit page
-        // window.location.href = `/customer/edit.php?id=${id}`;
-        
-        // Option 2: Open edit modal
-        showCustomerModal('edit', id, name);
-        
-        // Option 3: Fetch and populate edit form
-        fetchCustomerData('edit', id, name);
-    }
-    
-    // ========== DELETE CUSTOMER FUNCTION ==========
-    function deleteCustomer(id, name) {
-        console.log(`Attempting to delete customer: ${name} (ID: ${id})`);
-        
-        // Show confirmation dialog
-        if (confirm(`Are you sure you want to delete customer "${name}"? This action cannot be undone.`)) {
-            
-            // Show loading state
-            const deleteBtn = document.querySelector(`button[data-id="${id}"][data-action="delete-customer"]`);
-            const originalHtml = deleteBtn.innerHTML;
-            deleteBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i>';
-            deleteBtn.disabled = true;
-            
-            // Make AJAX request to delete customer
-            fetch('/api/delete-customer.php', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    id: id,
-                    name: name
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // Remove the row from table
-                    const customerRow = document.querySelector(`tr[data-id="${id}"]`);
-                    if (customerRow) {
-                        customerRow.remove();
-                    }
-                    
-                    // Show success message
-                    showNotification('success', `Customer "${name}" deleted successfully`);
-                    
-                    // Update select all checkbox if needed
-                    updateSelectAllState();
-                } else {
-                    throw new Error(data.message || 'Delete failed');
+                const computedProgress = result && result.customer && result.customer.progress !== undefined
+                    ? parseInt(result.customer.progress, 10)
+                    : (progressInput ? parseInt(progressInput.value || '0', 10) : 0);
+                if (progressInput) {
+                    progressInput.value = String(computedProgress);
                 }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                showNotification('error', `Failed to delete customer: ${error.message}`);
-                
-                // Restore button state
-                deleteBtn.innerHTML = originalHtml;
-                deleteBtn.disabled = false;
-            });
-        }
-    }
-    
-    // ========== FETCH CUSTOMER DATA ==========
-    function fetchCustomerData(action, id, name) {
-        // Show loading indicator
-        showNotification('info', `Loading ${name}...`);
-        
-        fetch(`/api/get-customer.php?id=${id}`)
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    if (action === 'view') {
-                        displayCustomerDetails(data.customer);
-                    } else if (action === 'edit') {
-                        populateEditForm(data.customer);
-                    }
-                } else {
-                    throw new Error(data.message || 'Failed to load customer data');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                showNotification('error', `Failed to load customer data: ${error.message}`);
-            });
-    }
-    
-    // ========== MODAL HANDLING ==========
-    function showCustomerModal(action, id, name) {
-        // Check if modal container exists, if not create it
-        let modalContainer = document.getElementById('customerModal');
-        
-        if (!modalContainer) {
-            modalContainer = document.createElement('div');
-            modalContainer.id = 'customerModal';
-            modalContainer.className = 'modal fade';
-            modalContainer.setAttribute('tabindex', '-1');
-            modalContainer.innerHTML = `
-                <div class="modal-dialog modal-lg">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h5 class="modal-title"></h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                        </div>
-                        <div class="modal-body">
-                            <div class="text-center">
-                                <div class="spinner-border text-primary" role="status">
-                                    <span class="visually-hidden">Loading...</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            `;
-            document.body.appendChild(modalContainer);
-        }
-        
-        // Set modal title based on action
-        const modalTitle = modalContainer.querySelector('.modal-title');
-        modalTitle.textContent = action === 'view' ? `View Customer: ${name}` : `Edit Customer: ${name}`;
-        
-        // Show modal
-        const modal = new bootstrap.Modal(modalContainer);
-        modal.show();
-        
-        // Load content based on action
-        loadModalContent(action, id);
-    }
-    
-    function loadModalContent(action, id) {
-        const modalBody = document.querySelector('#customerModal .modal-body');
-        
-        // Fetch content for modal
-        fetch(`/api/customer-modal-content.php?action=${action}&id=${id}`)
-            .then(response => response.text())
-            .then(html => {
-                modalBody.innerHTML = html;
-                
-                // Initialize any form handlers if in edit mode
-                if (action === 'edit') {
-                    initializeEditForm();
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                modalBody.innerHTML = '<div class="alert alert-danger">Failed to load customer data</div>';
-            });
-    }
-    
-    // ========== PAYMENT FILTER DROPDOWN ==========
-    // Handle payment filter links only (avoid row-level data-payment attributes)
-    const paymentLinks = document.querySelectorAll('.payment-header-dropdown .dropdown-item[data-payment]');
-    
-    paymentLinks.forEach(link => {
-        link.addEventListener('click', function(e) {
-            e.preventDefault();
-            // Remove active class from all links
-            paymentLinks.forEach(l => l.classList.remove('active'));
-            
-            // Add active class to clicked link
-            this.classList.add('active');
-            
-            // Navigate using server-rendered filter URL from the clicked dropdown item
-            if (this.href) {
-                window.location.href = this.href;
+                updateRowFromPayload(activeRow, {
+                    ...payload,
+                    progress: computedProgress
+                });
+                showNotification('success', result.message || 'Customer updated.');
+                customerModal.hide();
+            } catch (error) {
+                showNotification('error', error.message || 'Update failed');
+            } finally {
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = originalHtml;
             }
         });
-    });
-    
-    // ========== TABLE DATA RELOAD ==========
-    function loadTableData() {
-        // This module currently uses server-rendered table responses.
-        // Fallback: refresh the page instead of calling a missing API endpoint.
-        window.location.reload();
     }
-    
-    function initializeTableListeners() {
-        // Re-attach checkbox listeners
-        // Re-attach button listeners
-        // This function would reinitialize all event listeners
-        // You might want to call your DOMContentLoaded logic here
-    }
-    
-    // ========== BULK ACTIONS ==========
-    // Add bulk action buttons handler
+
     const bulkActionBtn = document.getElementById('bulkActionBtn');
     if (bulkActionBtn) {
-        bulkActionBtn.addEventListener('click', function() {
+        bulkActionBtn.addEventListener('click', function () {
             const selectedIds = getSelectedCustomerIds();
-            
+            const action = document.getElementById('bulkActionSelect') ? document.getElementById('bulkActionSelect').value : '';
+
             if (selectedIds.length === 0) {
                 showNotification('warning', 'Please select at least one customer');
                 return;
             }
-            
-            const action = document.getElementById('bulkActionSelect').value;
-            
             if (!action) {
                 showNotification('warning', 'Please select an action');
                 return;
             }
-            
             performBulkAction(action, selectedIds);
         });
     }
-    
-    function getSelectedCustomerIds() {
-        const selectedIds = [];
-        document.querySelectorAll('.row-checkbox:checked').forEach(checkbox => {
-            const row = checkbox.closest('tr');
-            if (row) {
-                selectedIds.push(row.dataset.id);
-            }
-        });
-        return selectedIds;
-    }
-    
-    function performBulkAction(action, ids) {
-        if (!confirm(`Are you sure you want to ${action} ${ids.length} customer(s)?`)) {
+
+    function openViewMode(customerId, customerName, row) {
+        if (!customerModal || !overviewSection || !overviewBody || !modalForm) {
+            showNotification('error', 'Customer modal is not available.');
             return;
         }
-        
-        fetch('/api/bulk-customer-action.php', {
+
+        activeRow = row;
+        activeCustomerId = customerId;
+        activeCustomerName = customerName;
+
+        if (modalTitle) {
+            modalTitle.textContent = 'Customer Overview - ' + customerName;
+        }
+
+        overviewSection.classList.remove('d-none');
+        modalForm.classList.add('d-none');
+        if (saveBtn) {
+            saveBtn.classList.add('d-none');
+        }
+        if (editBtn) {
+            editBtn.classList.remove('d-none');
+            editBtn.textContent = 'Edit';
+        }
+
+        overviewBody.innerHTML = '' +
+            '<div class="text-center py-5">' +
+            '  <div class="spinner-border text-primary mb-3" role="status">' +
+            '    <span class="visually-hidden">Loading...</span>' +
+            '  </div>' +
+            '  <div class="text-muted">Loading account overview...</div>' +
+            '</div>';
+
+        customerModal.show();
+        loadCustomerOverview(customerId);
+    }
+
+    function openEditMode(customerId, customerName, row, keepModalOpen) {
+        if (!customerModal || !modalForm || !overviewSection) {
+            showNotification('error', 'Customer modal is not available.');
+            return;
+        }
+
+        activeRow = row || activeRow;
+        activeCustomerId = customerId || activeCustomerId;
+        activeCustomerName = customerName || activeCustomerName;
+
+        if (modalTitle) {
+            modalTitle.textContent = 'Edit Customer - ' + (activeCustomerName || 'Customer');
+        }
+
+        fillEditFormFromRow(activeCustomerId, activeCustomerName, activeRow);
+        populateEditFormFromApi(activeCustomerId);
+        setEditModeEnabled(true);
+
+        overviewSection.classList.add('d-none');
+        modalForm.classList.remove('d-none');
+
+        if (editBtn) {
+            editBtn.classList.add('d-none');
+        }
+        if (saveBtn) {
+            saveBtn.classList.remove('d-none');
+        }
+
+        if (!keepModalOpen) {
+            customerModal.show();
+        }
+    }
+
+    function fillEditFormFromRow(customerId, customerName, row) {
+        if (idInput) idInput.value = customerId || '';
+        if (nameInput) nameInput.value = customerName || '';
+        if (emailInput) emailInput.value = '';
+        if (phoneInput) phoneInput.value = '';
+        if (remarksInput) remarksInput.value = '';
+        if (progressInput) progressInput.value = row ? (row.dataset.progress || 0) : 0;
+        if (refundInput) refundInput.checked = row ? String(row.dataset.refund || '0') === '1' : false;
+    }
+
+    function setEditModeEnabled(enabled) {
+        if (nameInput) nameInput.readOnly = !enabled;
+        if (emailInput) emailInput.readOnly = !enabled;
+        if (phoneInput) phoneInput.readOnly = !enabled;
+        if (remarksInput) remarksInput.readOnly = !enabled;
+        if (progressInput) progressInput.readOnly = true;
+        if (refundInput) refundInput.disabled = !enabled;
+    }
+
+    async function loadCustomerOverview(customerId) {
+        try {
+            const data = await fetchCustomerOverviewData(customerId);
+            renderCustomerOverview(data || {});
+        } catch (error) {
+            if (overviewBody) {
+                overviewBody.innerHTML =
+                    '<div class="alert alert-danger mb-0">' +
+                    '<i class="fa fa-exclamation-triangle me-2"></i>' +
+                    escapeHtml(error.message || 'Failed to load overview.') +
+                    '</div>';
+            }
+        }
+    }
+
+    async function populateEditFormFromApi(customerId) {
+        if (!customerId) {
+            return;
+        }
+        try {
+            const data = await fetchCustomerOverviewData(customerId);
+            const customer = data && data.customer ? data.customer : {};
+
+            if (nameInput) nameInput.value = customer.name || customer.full_name || nameInput.value;
+            if (emailInput) emailInput.value = customer.email || '';
+            if (phoneInput) phoneInput.value = customer.phone || '';
+            if (remarksInput) remarksInput.value = customer.remarks || '';
+            if (progressInput && customer.progress !== undefined && customer.progress !== null) progressInput.value = customer.progress;
+            if (refundInput) refundInput.checked = Number(customer.refund_flag || 0) === 1;
+        } catch (error) {
+            // Keep row-based fallback values if API details fail to load.
+        }
+    }
+
+    async function fetchCustomerOverviewData(customerId) {
+        const endpoint = new URL('api/get-customer-overview.php', window.location.href);
+        endpoint.searchParams.set('customer_id', customerId);
+
+        const response = await fetch(endpoint.toString(), {
+            method: 'GET',
+            headers: { 'Accept': 'application/json' }
+        });
+
+        const rawText = await response.text();
+        let payload = null;
+        try {
+            payload = JSON.parse(rawText);
+        } catch (jsonError) {
+            throw new Error('Overview API returned non-JSON response (' + response.status + '). Check API path/routing.');
+        }
+
+        if (!response.ok || !payload || !payload.success) {
+            throw new Error((payload && payload.message) || 'Failed to load overview');
+        }
+
+        return payload.data || {};
+    }
+
+    function renderCustomerOverview(data) {
+        if (!overviewBody) {
+            return;
+        }
+
+        const customer = data.customer || {};
+        const crm = data.crm || {};
+        const passportVisa = data.passport || data.passport_visa || {};
+        const scheduleRates = data.schedule || data.schedule_rates || {};
+        const facilities = data.facilities || data.facilities_reservation || {};
+
+        overviewBody.innerHTML = '' +
+            '<div class="ae-overview">' +
+            '  <div class="mb-4">' +
+            '    <h6 class="fw-bold border-bottom pb-2 mb-3">Basic Customer Information</h6>' +
+            '    <div class="row g-3">' +
+            '      <div class="col-md-4">' +
+            '        <div class="text-muted small">Customer Name</div>' +
+            '        <div class="fw-semibold">' + escapeHtml(customer.name || customer.full_name || 'N/A') + '</div>' +
+            '      </div>' +
+            '      <div class="col-md-4">' +
+            '        <div class="text-muted small">Email</div>' +
+            '        <div class="fw-semibold">' + escapeHtml(customer.email || 'No email') + '</div>' +
+            '      </div>' +
+            '      <div class="col-md-4">' +
+            '        <div class="text-muted small">Overall Account Status</div>' +
+            '        <div>' + badgeHtml(customer.overall_status || customer.status || 'pending') + '</div>' +
+            '      </div>' +
+            '    </div>' +
+            '  </div>' +
+            '  <div class="row g-3">' +
+            moduleCardHtml('CRM', [
+                ['Tier Level', '<span class="fw-semibold">' + escapeHtml(crm.tier || crm.customer_tier_level || 'new') + '</span>'],
+                ['Engagement Status', badgeHtml(crm.engagement_status || 'pending')],
+                ['Total Transactions', '<span class="fw-semibold">' + escapeHtml(String(crm.total_transactions || 0)) + '</span>']
+            ]) +
+            moduleCardHtml('Passport & Visa', [
+                ['Document Submission Status', badgeHtml(passportVisa.document_status || passportVisa.document_submission_status || 'pending')],
+                ['Verification Status', badgeHtml(passportVisa.verification_status || 'pending')],
+                ['Compliance Status', badgeHtml(passportVisa.compliance_status || 'pending')]
+            ]) +
+            moduleCardHtml('Schedule & Rates', [
+                ['Schedule Inquiry Status', badgeHtml(scheduleRates.inquiry_status || scheduleRates.schedule_inquiry_status || 'pending')],
+                ['Rate Quotation Status', badgeHtml(scheduleRates.quotation_status || scheduleRates.rate_quotation_status || 'pending')]
+            ]) +
+            moduleCardHtml('Facilities & Reservation', [
+                ['Reservation Status', badgeHtml(facilities.reservation_status || 'pending')],
+                ['Payment Status', badgeHtml(facilities.payment_status || 'pending')]
+            ]) +
+            '  </div>' +
+            '</div>';
+    }
+
+    function moduleCardHtml(title, rows) {
+        let tableRows = '';
+        rows.forEach(function (row) {
+            tableRows += '' +
+                '<tr>' +
+                '  <th style="width: 45%;">' + escapeHtml(row[0]) + '</th>' +
+                '  <td>' + row[1] + '</td>' +
+                '</tr>';
+        });
+
+        return '' +
+            '<div class="col-md-6">' +
+            '  <div class="card h-100 shadow-sm">' +
+            '    <div class="card-header fw-bold">' + escapeHtml(title) + '</div>' +
+            '    <div class="card-body p-0">' +
+            '      <div class="table-responsive">' +
+            '        <table class="table table-bordered table-sm align-middle mb-0">' +
+            '          <thead class="table-light">' +
+            '            <tr>' +
+            '              <th style="width: 45%;">Field Name</th>' +
+            '              <th>Value</th>' +
+            '            </tr>' +
+            '          </thead>' +
+            '          <tbody>' + tableRows + '</tbody>' +
+            '        </table>' +
+            '      </div>' +
+            '    </div>' +
+            '  </div>' +
+            '</div>';
+    }
+
+    function badgeHtml(value) {
+        const text = String(value || 'pending');
+        const tone = statusTone(text);
+        return '<span class="badge rounded-pill bg-' + tone + '">' + escapeHtml(text) + '</span>';
+    }
+
+    function statusTone(value) {
+        const normalized = String(value || '').trim().toLowerCase();
+        const successValues = [
+            'approved', 'complete', 'completed', 'paid', 'verified', 'visa issued',
+            'confirmed', 'active', 'open', 'admitted', 'finished', 'submitted'
+        ];
+        const dangerValues = [
+            'rejected', 'denied', 'failed', 'cancelled', 'overdue', 'missing', 'action required'
+        ];
+        if (successValues.indexOf(normalized) !== -1) {
+            return 'success';
+        }
+        if (dangerValues.indexOf(normalized) !== -1) {
+            return 'danger';
+        }
+        return 'warning';
+    }
+
+    async function handleDeleteCustomer(customerId, row) {
+        if (!customerId) {
+            showNotification('error', 'Invalid customer id.');
+            return;
+        }
+        const confirmed = await showConfirm('Delete customer #' + customerId + '?', null, {
+            title: 'Confirm Delete',
+            okText: 'Delete',
+            okClass: 'btn btn-danger'
+        });
+        if (!confirmed) {
+            return;
+        }
+
+        try {
+            const result = await postAjax('delete-customer', { customer_id: customerId });
+            if (!(result && (result.ok || result.success))) {
+                throw new Error((result && result.message) || 'Delete failed');
+            }
+            if (row && row.parentNode) {
+                row.parentNode.removeChild(row);
+            }
+            showNotification('success', result.message || 'Customer deleted.');
+            updateSelectAllState();
+        } catch (error) {
+            showNotification('error', error.message || 'Delete failed');
+        }
+    }
+
+    async function postAjax(action, payload) {
+        const url = new URL(window.location.href);
+        url.searchParams.set('ajax', action);
+        const response = await fetch(url.pathname + '?' + url.searchParams.toString(), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                'Accept': 'application/json'
             },
-            body: JSON.stringify({
-                action: action,
-                ids: ids
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                showNotification('success', `Bulk action completed successfully`);
-                loadTableData();
-            } else {
-                throw new Error(data.message || 'Bulk action failed');
+            body: JSON.stringify(payload || {})
+        });
+        const result = await response.json();
+        if (!response.ok) {
+            throw new Error((result && result.message) || 'Request failed');
+        }
+        return result;
+    }
+
+    function updateRowFromPayload(row, payload) {
+        if (!row) {
+            return;
+        }
+
+        row.dataset.progress = String(payload.progress || row.dataset.progress || 0);
+        row.dataset.refund = String(payload.refund_flag || 0);
+
+        if (row.cells[2]) row.cells[2].innerText = payload.name || row.cells[2].innerText;
+
+        if (row.cells[6]) {
+            const progress = Number.isFinite(payload.progress) ? payload.progress : parseInt(payload.progress || '0', 10);
+            row.cells[6].innerHTML = String(progress) + '%' +
+                '<div class="progress"><div class="progress-bar bg-success" style="width:' + progress + '%"></div></div>';
+        }
+    }
+
+    function getSelectedCustomerIds() {
+        const ids = [];
+        document.querySelectorAll('.row-checkbox:checked').forEach(function (checkbox) {
+            const row = checkbox.closest('tr');
+            if (row && row.dataset.id) {
+                ids.push(row.dataset.id);
             }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showNotification('error', `Bulk action failed: ${error.message}`);
+        });
+        return ids;
+    }
+
+    function performBulkAction(action, ids) {
+        showConfirm('Are you sure you want to ' + action + ' ' + ids.length + ' customer(s)?', async function () {
+            fetch('/api/bulk-customer-action.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: action, ids: ids })
+            })
+                .then(function (response) { return response.json(); })
+                .then(function (data) {
+                    if (data.success) {
+                        showNotification('success', 'Bulk action completed successfully');
+                        window.location.reload();
+                    } else {
+                        throw new Error(data.message || 'Bulk action failed');
+                    }
+                })
+                .catch(function (error) {
+                    showNotification('error', 'Bulk action failed: ' + (error.message || 'Unknown error'));
+                });
+        }, {
+            title: 'Confirm Bulk Action',
+            okText: 'Proceed',
+            okClass: 'btn btn-primary'
         });
     }
-    
-    // ========== NOTIFICATION SYSTEM ==========
+
     function showNotification(type, message) {
-        // Check if notification container exists
-        let notificationContainer = document.getElementById('notificationContainer');
-        
-        if (!notificationContainer) {
-            notificationContainer = document.createElement('div');
-            notificationContainer.id = 'notificationContainer';
-            notificationContainer.style.cssText = `
-                position: fixed;
-                top: 20px;
-                right: 20px;
-                z-index: 9999;
-            `;
-            document.body.appendChild(notificationContainer);
+        if (type === 'success') {
+            showSuccess(message);
+            return;
         }
-        
-        // Create notification
-        const notification = document.createElement('div');
-        notification.className = `alert alert-${type === 'error' ? 'danger' : type} alert-dismissible fade show`;
-        notification.role = 'alert';
-        notification.innerHTML = `
-            ${message}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        `;
-        
-        notificationContainer.appendChild(notification);
-        
-        // Auto remove after 5 seconds
-        setTimeout(() => {
-            notification.remove();
-        }, 5000);
+        if (type === 'warning') {
+            showWarning(message);
+            return;
+        }
+        if (type === 'error') {
+            showError(message);
+            return;
+        }
+        showInfo(message);
     }
-    
+
     function updateSelectAllState() {
-        if (selectAllCheckbox) {
-            const allChecked = Array.from(rowCheckboxes).every(cb => cb.checked);
-            const anyChecked = Array.from(rowCheckboxes).some(cb => cb.checked);
-            
-            selectAllCheckbox.checked = allChecked;
-            selectAllCheckbox.indeterminate = !allChecked && anyChecked;
+        if (!selectAllCheckbox) {
+            return;
         }
+        const rowCheckboxes = Array.from(document.querySelectorAll('.row-checkbox'));
+        const allChecked = rowCheckboxes.length > 0 && rowCheckboxes.every(function (cb) { return cb.checked; });
+        const anyChecked = rowCheckboxes.some(function (cb) { return cb.checked; });
+        selectAllCheckbox.checked = allChecked;
+        selectAllCheckbox.indeterminate = !allChecked && anyChecked;
     }
-    
-    // Helper functions for customer data display (you can expand these)
-    function displayCustomerDetails(customer) {
-        console.log('Displaying customer details:', customer);
-        // Implement customer details display logic
-    }
-    
-    function populateEditForm(customer) {
-        console.log('Populating edit form with:', customer);
-        // Implement edit form population logic
-    }
-    
-    function initializeEditForm() {
-        console.log('Initializing edit form handlers');
-        // Implement edit form initialization logic
-    }
-    
-    // ========== INITIALIZE ==========
-    // Make sure Bootstrap is available
-    if (typeof bootstrap === 'undefined') {
-        console.warn('Bootstrap JS is not loaded. Modal functionality may not work.');
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = String(text || '');
+        return div.innerHTML;
     }
 });

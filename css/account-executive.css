@@ -89,9 +89,11 @@ body { background:#f8f9fa; }
     overflow: hidden;
 }
 
-/* TABS - EXACT BOOTSTRAP STYLE (FIXED) */
-.filter-tabs.nav-tabs {
-    border-bottom: 1px solid #dee2e6;
+        opacity: 0;
+        transition: opacity .25s ease;
+        visibility: hidden;
+        /* disable legacy backdrop so Bootstrap modal backdrop works */
+        display: none !important;
     display: flex;
     flex-wrap: wrap;
     padding-left: 0;
@@ -451,4 +453,54 @@ tr.reminder-sent { background: linear-gradient(90deg, rgba(255,243,205,0.6), rgb
 /* Ensure dropdown appears above table content */
 .payment-header-dropdown .dropdown-menu {
     z-index: 1001;
+}
+
+.customer-action-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.4);
+    z-index: 1040;
+}
+
+.customer-action-panel {
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: min(420px, 92vw);
+    height: 100vh;
+    background: #fff;
+    border-left: 1px solid #dee2e6;
+    box-shadow: -10px 0 30px rgba(15, 23, 42, 0.2);
+    z-index: 1050;
+    display: flex;
+    flex-direction: column;
+    transform: translateX(100%);
+    transition: transform 0.2s ease;
+}
+
+.customer-action-panel.is-open {
+    /* keep legacy drawer closed to allow Bootstrap modal to show */
+    transform: translateX(100%) !important;
+}
+
+.customer-action-panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 16px;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.customer-action-panel-body {
+    padding: 16px;
+    overflow-y: auto;
+    flex: 1 1 auto;
+}
+
+.customer-action-panel-footer {
+    padding: 12px 16px;
+    border-top: 1px solid #e9ecef;
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
 }

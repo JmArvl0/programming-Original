@@ -35,7 +35,7 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 
 function confirmLogout() {
-    alert('Logging out...');
+    showInfo('Logging out...');
     bootstrap.Modal
         .getInstance(document.getElementById('logoutModal'))
         .hide();

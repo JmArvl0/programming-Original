@@ -525,41 +525,41 @@ document.addEventListener('DOMContentLoaded', function() {
                 break;
         }
         
-        if (!confirm(confirmMessage)) return;
-        
-        // Show loading
-        const btn = this;
-        const originalText = btn.innerHTML;
-        btn.innerHTML = '<i class="fa fa-spinner fa-spin me-2"></i>Processing...';
-        btn.disabled = true;
-        
-        fetch('api/bulk-customer-action.php', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                action: action,
-                ids: selectedIds
+        showConfirm(confirmMessage, function () {
+            // Show loading
+            const btn = bulkActionBtn;
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fa fa-spinner fa-spin me-2"></i>Processing...';
+            btn.disabled = true;
+
+            fetch('api/bulk-customer-action.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    action: action,
+                    ids: selectedIds
+                })
             })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                showToast('Success', data.message, 'success');
-                setTimeout(() => location.reload(), 1000);
-            } else {
-                throw new Error(data.message || 'Action failed');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showToast('Error', 'Action failed: ' + error.message, 'error');
-        })
-        .finally(() => {
-            btn.innerHTML = originalText;
-            btn.disabled = false;
-        });
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast('Success', data.message, 'success');
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    throw new Error(data.message || 'Action failed');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showToast('Error', 'Action failed: ' + error.message, 'error');
+            })
+            .finally(() => {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            });
+        }, { title: 'Confirm Action', okText: 'Proceed' });
     });
     
     // ========== SEND REMINDER BUTTON ==========
@@ -569,39 +569,39 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        if (!confirm(`Send reminders to ${selectedIds.length} selected customer(s)?`)) return;
-        
-        const btn = this;
-        const originalText = btn.innerHTML;
-        btn.innerHTML = '<i class="fa fa-spinner fa-spin me-2"></i>Sending...';
-        btn.disabled = true;
-        
-        fetch('api/bulk-customer-action.php', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                action: 'send-reminder',
-                ids: selectedIds
+        showConfirm(`Send reminders to ${selectedIds.length} selected customer(s)?`, function () {
+            const btn = sendReminderBtn;
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fa fa-spinner fa-spin me-2"></i>Sending...';
+            btn.disabled = true;
+
+            fetch('api/bulk-customer-action.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    action: 'send-reminder',
+                    ids: selectedIds
+                })
             })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                showToast('Success', data.message, 'success');
-            } else {
-                throw new Error(data.message || 'Failed to send reminders');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showToast('Error', 'Failed to send reminders: ' + error.message, 'error');
-        })
-        .finally(() => {
-            btn.innerHTML = originalText;
-            btn.disabled = false;
-        });
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast('Success', data.message, 'success');
+                } else {
+                    throw new Error(data.message || 'Failed to send reminders');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showToast('Error', 'Failed to send reminders: ' + error.message, 'error');
+            })
+            .finally(() => {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            });
+        }, { title: 'Send Reminder', okText: 'Send' });
     });
     
     // ========== SEARCH FUNCTIONALITY ==========

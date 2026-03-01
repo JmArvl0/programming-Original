@@ -64,7 +64,7 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 
 function viewReservationRequest(id) {
-    alert(`Viewing reservation request details for ID: ${id}`);
+    showInfo(`Viewing reservation request details for ID: ${id}`);
 }
 
 function updateReservationStatus(id) {
@@ -83,13 +83,13 @@ function updateReservationStatus(id) {
     })
         .then((response) => response.json())
         .then((result) => {
-            alert(result.message || 'Reservation updated.');
+            showSuccess(result.message || 'Reservation updated.');
         })
         .catch(() => {
-            alert('Unable to update reservation status right now.');
+            showError('Unable to update reservation status right now.');
         });
 }
 
 function addReservationRequest() {
-    alert('Adding new facility reservation request...');
+    showInfo('Adding new facility reservation request...');
 }

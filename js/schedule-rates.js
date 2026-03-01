@@ -40,7 +40,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const addNewTourBtn = document.getElementById('addNewTourBtn');
     if (addNewTourBtn) {
         addNewTourBtn.addEventListener('click', function () {
-            alert('Opening new tour creation form');
+            showInfo('Opening new tour creation form');
         });
     }
 
@@ -49,10 +49,10 @@ document.addEventListener('DOMContentLoaded', function () {
             const action = this.getAttribute('data-action') || 'view';
             const tourId = this.getAttribute('data-tour-id') || '';
             if (action === 'manage') {
-                alert(`Managing tour #${tourId}`);
+                showInfo(`Managing tour #${tourId}`);
                 return;
             }
-            alert(`Viewing tour #${tourId}`);
+            showInfo(`Viewing tour #${tourId}`);
         });
     });
 

@@ -131,7 +131,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             window.location.reload();
         } catch (error) {
-            alert(error.message || 'Unable to send message.');
+            showError(error.message || 'Unable to send message.');
         }
     });
 });

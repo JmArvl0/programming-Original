@@ -32,6 +32,7 @@
             <tr
                 data-payment-status="<?= htmlspecialchars($customer['paymentStatusNormalized'], ENT_QUOTES, 'UTF-8') ?>"
                 data-status="<?= htmlspecialchars($customer['statusNormalized'], ENT_QUOTES, 'UTF-8') ?>"
+                data-documents-status="<?= htmlspecialchars($customer['documentsStatusNormalized'] ?? '', ENT_QUOTES, 'UTF-8') ?>"
                 data-progress="<?= (int) $customer['progressWidth'] ?>"
                 data-date="<?= htmlspecialchars($customer['createdDate'], ENT_QUOTES, 'UTF-8') ?>"
                 data-last-contacted="<?= htmlspecialchars($customer['lastContactedDate'], ENT_QUOTES, 'UTF-8') ?>"
@@ -50,7 +51,7 @@
                         <div class="progress-bar bg-success" style="width:<?= (int) $customer['progressWidth'] ?>%"></div>
                     </div>
                 </td>
-                <td><span class="badge rounded-pill <?= $customer['statusBadgeClass'] ?>"><?= htmlspecialchars($customer['status'], ENT_QUOTES, 'UTF-8') ?></span></td>
+                    <td><span class="badge rounded-pill <?= htmlspecialchars(document_status_badge_class($customer['documentsStatus'] ?? ''), ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars(document_status_label($customer['documentsStatus'] ?? ''), ENT_QUOTES, 'UTF-8') ?></span></td>
                 <td>
                     <button type="button" class="btn btn-sm btn-primary js-customer-action" data-action="view-customer" data-id="<?= (int) $customer['id'] ?>" data-name="<?= htmlspecialchars($customer['name'], ENT_QUOTES, 'UTF-8') ?>"><i class="fa fa-eye"></i></button>
                     <button type="button" class="btn btn-sm btn-success js-customer-action" data-action="edit-customer" data-id="<?= (int) $customer['id'] ?>" data-name="<?= htmlspecialchars($customer['name'], ENT_QUOTES, 'UTF-8') ?>"><i class="fa fa-edit"></i></button>
