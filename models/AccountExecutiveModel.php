@@ -77,7 +77,7 @@ class AccountExecutiveModel
 
         $docStageExpr = "
             CASE
-                WHEN pa.customer_id IS NULL THEN 'not started'
+                WHEN pa.booking_id IS NULL THEN 'not started'
                 WHEN LOWER(TRIM(pa.application_status)) IN ('visa issued', 'approved') THEN 'finished'
                 WHEN LOWER(TRIM(pa.application_status)) IN ('processing', 'under review') THEN LOWER(TRIM(pa.application_status))
                 WHEN LOWER(TRIM(pa.documents_status)) = 'missing' THEN 'missing'
@@ -89,9 +89,9 @@ class AccountExecutiveModel
 
         $paymentExpr = "
             CASE
-                WHEN p.status IS NULL THEN LOWER(TRIM(COALESCE(c.payment_status, 'unpaid')))
+                WHEN p.status IS NULL THEN LOWER(TRIM(COALESCE(b.payment_status, 'pending')))
                 WHEN LOWER(TRIM(p.status)) = 'partial' THEN 'partially paid'
-                WHEN LOWER(TRIM(p.status)) = 'pending' THEN 'unpaid'
+                WHEN LOWER(TRIM(p.status)) = 'pending' THEN 'pending'
                 WHEN LOWER(TRIM(p.status)) = 'cancelled' THEN 'failed'
                 ELSE LOWER(TRIM(p.status))
             END
@@ -100,30 +100,36 @@ class AccountExecutiveModel
             EXISTS (
                 SELECT 1
                 FROM bookings bcx
-                INNER JOIN guests gcx ON gcx.id = bcx.guest_id
-                WHERE gcx.customer_id = c.id
+                WHERE bcx.customer_id = c.id
                   AND LOWER(TRIM(bcx.booking_status)) = 'cancelled'
             )
         ";
 
+        // Use account_executive -> bookings -> customers chain so this module
+        // doesn't assume a direct customer_id on account_executive.
         $fromClause = "
-            FROM customers c
-            LEFT JOIN passport_applications pa
-                ON pa.id = (
-                    SELECT pa2.id
-                    FROM passport_applications pa2
-                    WHERE pa2.customer_id = c.id
-                    ORDER BY pa2.updated_at DESC, pa2.id DESC
-                    LIMIT 1
-                )
-            LEFT JOIN payments p
-                ON p.id = (
-                    SELECT p2.id
-                    FROM payments p2
-                    WHERE p2.customer_id = c.id
-                    ORDER BY p2.updated_at DESC, p2.id DESC
-                    LIMIT 1
-                )
+            FROM account_executive ae
+            INNER JOIN bookings b ON ae.booking_id = b.id
+            INNER JOIN customers c ON b.customer_id = c.id
+            LEFT JOIN tours t ON t.id = b.tour_id
+            LEFT JOIN (
+                SELECT pa1.* FROM passport_applications pa1
+                INNER JOIN (
+                    SELECT booking_id, MAX(CONCAT(COALESCE(updated_at,'1970-01-01 00:00:00'), '-', LPAD(id,10,'0'))) AS max_key
+                    FROM passport_applications
+                    GROUP BY booking_id
+                ) pa_max ON pa1.booking_id = pa_max.booking_id
+                    AND CONCAT(COALESCE(pa1.updated_at,'1970-01-01 00:00:00'), '-', LPAD(pa1.id,10,'0')) = pa_max.max_key
+            ) pa ON pa.booking_id = b.id
+            LEFT JOIN (
+                SELECT p1.* FROM payments p1
+                INNER JOIN (
+                    SELECT booking_id, MAX(CONCAT(COALESCE(updated_at,'1970-01-01 00:00:00'), '-', LPAD(id,10,'0'))) AS max_key
+                    FROM payments
+                    GROUP BY booking_id
+                ) p_max ON p1.booking_id = p_max.booking_id
+                    AND CONCAT(COALESCE(p1.updated_at,'1970-01-01 00:00:00'), '-', LPAD(p1.id,10,'0')) = p_max.max_key
+            ) p ON p.booking_id = b.id
         ";
 
         $whereParts = [];
@@ -153,10 +159,10 @@ class AccountExecutiveModel
                 $whereParts[] = "($docStageExpr = 'finished' AND $paymentExpr = 'paid')";
                 break;
             case 'refund':
-                $whereParts[] = "($paymentExpr = 'refunded' OR c.refund_flag = 1)";
+                $whereParts[] = "($paymentExpr = 'refunded' OR LOWER(TRIM(COALESCE(ae.case_status, b.booking_status, ''))) = 'refund')";
                 break;
             case 'cancel-booking':
-                $whereParts[] = "($hasCancelledBookingExpr OR LOWER(TRIM(c.status)) = 'cancelled')";
+                $whereParts[] = "($hasCancelledBookingExpr OR LOWER(TRIM(COALESCE(ae.case_status, b.booking_status, ''))) = 'cancelled')";
                 break;
             case 'all':
             default:
@@ -173,13 +179,13 @@ class AccountExecutiveModel
 
         $ignoreStatusFilter = in_array($normalizedTab, ['new', 'for-follow-up', 'ongoing', 'payment-issues', 'refund', 'cancel-booking'], true);
         if (!$ignoreStatusFilter && $normalizedStatus !== '' && $normalizedStatus !== 'all') {
-            $whereParts[] = "(LOWER(TRIM(c.status)) = ?)";
+            $whereParts[] = "(LOWER(TRIM(COALESCE(ae.case_status, b.booking_status, ''))) = ?)";
             $types .= 's';
             $params[] = $normalizedStatus;
         }
 
         if ($normalizedSearch !== '') {
-            $whereParts[] = "(c.full_name LIKE ? OR c.destination LIKE ? OR COALESCE(c.email, '') LIKE ?)";
+            $whereParts[] = "(c.full_name LIKE ? OR t.destination LIKE ? OR COALESCE(c.email, '') LIKE ?)";
             $types .= 'sss';
             $searchLike = '%' . $normalizedSearch . '%';
             $params[] = $searchLike;
@@ -207,23 +213,20 @@ class AccountExecutiveModel
         $safePage = max(1, min($safePage, $totalPages));
         $offset = ($safePage - 1) * $safePerPage;
 
-        // Paged rows query
+        // Paged rows query — join bookings and tours; remove non-existent customer columns
         $selectSql = "
             SELECT
                 c.id,
                 c.full_name,
                 c.email,
-                c.destination,
-                c.last_contacted_at,
-                c.created_at,
-                c.status,
-                c.admission_status,
-                c.progress,
-                c.refund_flag,
+                t.destination AS destination,
+                b.booking_status AS booking_status,
+                b.payment_status AS booking_payment_status,
+                b.created_at AS booking_created_at,
+                ae.case_status AS case_status,
                 COALESCE(pa.documents_status, 'not started') AS passport_documents_status,
                 COALESCE(pa.application_status, 'not started') AS passport_application_status,
                 p.status AS latest_payment_status,
-                c.payment_status AS customer_payment_status,
                 $docStageExpr AS document_stage,
                 $paymentExpr AS effective_payment_status,
                 $hasCancelledBookingExpr AS has_cancelled_booking
@@ -247,15 +250,14 @@ class AccountExecutiveModel
 
         $items = [];
         while ($row = $result->fetch_assoc()) {
-            $lastContactedRaw = (string) ($row['last_contacted_at'] ?? '');
-            $createdDateRaw = (string) ($row['created_at'] ?? '');
-            $effectivePaymentStatus = (string) ($row['effective_payment_status'] ?? 'unpaid');
-            $paymentStatus = $this->toDisplayCase($effectivePaymentStatus);
-            $status = $this->toDisplayCase((string) ($row['status'] ?? 'pending'));
+            $bookingCreatedRaw = (string) ($row['booking_created_at'] ?? '');
+            $effectivePaymentStatus = (string) ($row['effective_payment_status'] ?? ($row['latest_payment_status'] ?? $row['booking_payment_status'] ?? 'pending'));
+            $paymentStatus = $this->toDisplayCase($this->normalizePaymentStatus($effectivePaymentStatus));
+            $status = $this->toDisplayCase((string) ($row['booking_status'] ?? 'pending'));
             $documentsStatus = $this->toDisplayCase((string) ($row['document_stage'] ?? 'not started'));
-            $admissionStatus = $this->toDisplayCase((string) ($row['admission_status'] ?? 'pending'));
+            $admissionStatus = 'N/A';
             $hasCancelledBooking = ((int) ($row['has_cancelled_booking'] ?? 0)) === 1
-                || strtolower(trim((string) ($row['status'] ?? ''))) === 'cancelled';
+                || strtolower(trim((string) ($row['booking_status'] ?? ''))) === 'cancelled';
 
             if ($normalizedTab === 'refund') {
                 $paymentStatus = 'Refunded';
@@ -270,16 +272,16 @@ class AccountExecutiveModel
                 'name' => (string) ($row['full_name'] ?? 'Unknown Customer'),
                 'email' => (string) ($row['email'] ?? ''),
                 'destination' => (string) ($row['destination'] ?? 'N/A'),
-                'lastContacted' => $lastContactedRaw !== '' ? date('m/d/Y - h:i a', strtotime($lastContactedRaw)) : 'N/A',
-                'lastContactedDate' => $lastContactedRaw !== '' ? date('Y-m-d', strtotime($lastContactedRaw)) : date('Y-m-d'),
-                'createdDate' => $createdDateRaw !== '' ? date('Y-m-d', strtotime($createdDateRaw)) : date('Y-m-d'),
+                'lastContacted' => 'N/A',
+                'lastContactedDate' => $bookingCreatedRaw !== '' ? date('Y-m-d', strtotime($bookingCreatedRaw)) : date('Y-m-d'),
+                'createdDate' => $bookingCreatedRaw !== '' ? date('Y-m-d', strtotime($bookingCreatedRaw)) : date('Y-m-d'),
                 'paymentStatus' => $paymentStatus,
-                'paymentSource' => isset($row['latest_payment_status']) && $row['latest_payment_status'] !== null ? 'payments' : 'customers',
-                'progress' => max(0, min(100, (int) ($row['progress'] ?? 0))),
+                'paymentSource' => isset($row['latest_payment_status']) && $row['latest_payment_status'] !== null ? 'payments' : 'bookings',
+                'progress' => 0,
                 'status' => $status,
                 'documentsStatus' => $documentsStatus,
                 'admissionStatus' => $admissionStatus,
-                'refund' => ((int) ($row['refund_flag'] ?? 0)) === 1 ? 'true' : 'false'
+                'refund' => ((string) ($row['case_status'] ?? '')) === 'refund' ? 'true' : 'false'
             ];
         }
         $selectStmt->close();
@@ -288,9 +290,7 @@ class AccountExecutiveModel
         $allFiltered = [];
         $statsSql = "
             SELECT
-                $paymentExpr AS effective_payment_status,
-                c.admission_status,
-                c.refund_flag
+                $paymentExpr AS effective_payment_status
             $fromClause
             $whereSql
         ";
@@ -308,8 +308,8 @@ class AccountExecutiveModel
                 }
                 $allFiltered[] = [
                     'paymentStatus' => $paymentStatus,
-                    'admissionStatus' => $this->toDisplayCase((string) ($statsRow['admission_status'] ?? 'pending')),
-                    'refund' => ((int) ($statsRow['refund_flag'] ?? 0)) === 1 ? 'true' : 'false'
+                    'admissionStatus' => 'Pending',
+                    'refund' => 'false'
                 ];
             }
             $statsStmt->close();
@@ -372,45 +372,11 @@ class AccountExecutiveModel
             return [];
         }
 
-        $sql = "SELECT
-                    c.id,
-                    c.full_name,
-                    c.destination,
-                    c.last_contacted_at,
-                    c.created_at,
-                    c.payment_status,
-                    c.status,
-                    c.admission_status,
-                    c.progress,
-                    c.refund_flag,
-                    pa.documents_status AS passport_documents_status,
-                    pa.application_status AS passport_application_status,
-                    p.status AS latest_payment_status,
-                    EXISTS (
-                        SELECT 1
-                        FROM bookings bcx
-                        INNER JOIN guests gcx ON gcx.id = bcx.guest_id
-                        WHERE gcx.customer_id = c.id
-                          AND LOWER(TRIM(bcx.booking_status)) = 'cancelled'
-                    ) AS has_cancelled_booking
-                FROM customers c
-                LEFT JOIN passport_applications pa
-                    ON pa.id = (
-                        SELECT pa2.id
-                        FROM passport_applications pa2
-                        WHERE pa2.customer_id = c.id
-                        ORDER BY pa2.updated_at DESC, pa2.id DESC
-                        LIMIT 1
-                    )
-                LEFT JOIN payments p
-                    ON p.id = (
-                        SELECT p2.id
-                        FROM payments p2
-                        WHERE p2.customer_id = c.id
-                        ORDER BY p2.updated_at DESC, p2.id DESC
-                        LIMIT 1
-                    )
-                ORDER BY c.full_name ASC";
+        $sql = "SELECT pa1.* FROM account_executive ae
+JOIN bookings b ON ae.booking_id = b.id
+JOIN customers c ON b.customer_id = c.id
+LEFT JOIN passport_applications pa1 ON pa1.booking_id = ae.booking_id
+WHERE c.id = ?";
         $result = $conn->query($sql);
         if (!($result instanceof mysqli_result)) {
             return [];
@@ -418,17 +384,16 @@ class AccountExecutiveModel
 
         $rows = [];
         while ($row = $result->fetch_assoc()) {
-            $lastContactedRaw = (string) ($row['last_contacted_at'] ?? '');
-            $createdDateRaw = (string) ($row['created_at'] ?? '');
-            $effectivePaymentStatus = (string) ($row['latest_payment_status'] ?? $row['payment_status'] ?? 'pending');
+            $bookingCreatedRaw = (string) ($row['booking_created_at'] ?? '');
+            $customerCreatedRaw = (string) ($row['created_at'] ?? '');
+            $effectivePaymentStatus = (string) ($row['latest_payment_status'] ?? $row['booking_payment_status'] ?? 'pending');
             $paymentStatus = $this->toDisplayCase($this->normalizePaymentStatus($effectivePaymentStatus));
 
-            $status = $this->toDisplayCase((string) ($row['status'] ?? 'pending'));
+            $status = $this->toDisplayCase((string) ($row['case_status'] ?? $row['booking_status'] ?? 'pending'));
             $documentsStatusRaw = (string) ($row['passport_documents_status'] ?? 'not started');
             $documentsStatus = $this->toDisplayCase($documentsStatusRaw);
-            $admissionStatus = $this->toDisplayCase((string) ($row['admission_status'] ?? 'pending'));
             $hasCancelledBooking = ((int) ($row['has_cancelled_booking'] ?? 0)) === 1
-                || strtolower(trim((string) ($row['status'] ?? ''))) === 'cancelled';
+                || strtolower(trim((string) ($row['booking_status'] ?? ''))) === 'cancelled';
             if ($hasCancelledBooking) {
                 $paymentStatus = 'Cancelled';
                 $documentsStatus = 'Cancelled';
@@ -438,18 +403,18 @@ class AccountExecutiveModel
                 'id' => (int) ($row['id'] ?? 0),
                 'name' => (string) ($row['full_name'] ?? 'Unknown Customer'),
                 'destination' => (string) ($row['destination'] ?? 'N/A'),
-                'lastContacted' => $lastContactedRaw !== '' ? date('m/d/Y - h:i a', strtotime($lastContactedRaw)) : 'N/A',
-                'lastContactedDate' => $lastContactedRaw !== '' ? date('Y-m-d', strtotime($lastContactedRaw)) : date('Y-m-d'),
-                'createdDate' => $createdDateRaw !== '' ? date('Y-m-d', strtotime($createdDateRaw)) : date('Y-m-d'),
+                'lastContacted' => 'N/A',
+                'lastContactedDate' => $bookingCreatedRaw !== '' ? date('Y-m-d', strtotime($bookingCreatedRaw)) : date('Y-m-d'),
+                'createdDate' => $customerCreatedRaw !== '' ? date('Y-m-d', strtotime($customerCreatedRaw)) : date('Y-m-d'),
                 'paymentStatus' => $paymentStatus,
                 'paymentSource' => isset($row['latest_payment_status']) && $row['latest_payment_status'] !== null
                     ? 'payments'
-                    : 'customers',
-                'progress' => max(0, min(100, (int) ($row['progress'] ?? 0))),
+                    : 'bookings',
+                'progress' => 0,
                 'status' => $status,
                 'documentsStatus' => $documentsStatus,
-                'admissionStatus' => $admissionStatus,
-                'refund' => ((int) ($row['refund_flag'] ?? 0)) === 1 ? 'true' : 'false'
+                'admissionStatus' => 'Pending',
+                'refund' => 'false'
             ];
         }
 

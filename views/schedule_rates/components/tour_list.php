@@ -1,3 +1,29 @@
+<?php
+// Enable error reporting for debugging
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
+// Additional debugging to check data flow
+if (empty($selectedDateTours)) {
+    echo '<div style="color: red;">Error: No tours found for the selected date. Please check the data source.</div>';
+} else {
+    echo '<div style="color: green;">Tours data loaded successfully.</div>';
+}
+
+if (empty($selectedDateLabel)) {
+    echo '<div style="color: red;">Error: Selected date label is not set. Please check the controller or data source.</div>';
+}
+
+// Debugging: Check if $selectedDateTours contains data
+echo '<pre>';
+print_r($selectedDateTours);
+echo '</pre>';
+
+// Debugging: Check if $selectedDateLabel is set
+echo 'Selected Date Label: ' . htmlspecialchars($selectedDateLabel) . '<br>';
+?>
+
 <div class="widget-title">
     Tours on <?= htmlspecialchars($selectedDateLabel) ?>
     <span class="badge"><?= count($selectedDateTours) ?> tours</span>

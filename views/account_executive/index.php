@@ -3,6 +3,11 @@
 session_start();
 require_once __DIR__ . '/../../config/database.php';
 
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
+$conn = getDBConnection();
+
 $selectedStatus = $_GET['status'] ?? 'all';
 $selectedPayment = $_GET['payment'] ?? 'all';
 $search = $_GET['search'] ?? '';
@@ -16,17 +21,20 @@ function buildUrl(array $params = []): string {
     return '?' . http_build_query($merged);
 }
 
-// Stats
+// Stats (convert PDO -> MySQLi) - updated to use bookings table
 try {
-    $stmt = $pdo->query("SELECT COUNT(*) FROM customers WHERE payment_status = 'paid'");
-    $paid = (int) $stmt->fetchColumn();
-    $stmt = $pdo->query("SELECT COUNT(*) FROM customers WHERE admission_status = 'admitted'");
-    $admitted = (int) $stmt->fetchColumn();
-    $stmt = $pdo->query("SELECT COUNT(*) FROM customers WHERE admission_status = 'pending'");
-    $pending = (int) $stmt->fetchColumn();
-    $stmt = $pdo->query("SELECT COUNT(*) FROM customers WHERE payment_status IN ('unpaid','overdue','partially paid')");
-    $unpaid = (int) $stmt->fetchColumn();
-} catch (PDOException $e) {
+    $res = $conn->query("SELECT COUNT(*) AS cnt FROM bookings WHERE payment_status = 'paid'");
+    $paid = $res ? (int) ($res->fetch_assoc()['cnt'] ?? 0) : 0;
+
+    $res = $conn->query("SELECT COUNT(*) AS cnt FROM bookings WHERE booking_status = 'finished'");
+    $admitted = $res ? (int) ($res->fetch_assoc()['cnt'] ?? 0) : 0;
+
+    $res = $conn->query("SELECT COUNT(*) AS cnt FROM bookings WHERE booking_status = 'pending'");
+    $pending = $res ? (int) ($res->fetch_assoc()['cnt'] ?? 0) : 0;
+
+    $res = $conn->query("SELECT COUNT(*) AS cnt FROM bookings WHERE payment_status IN ('unpaid','overdue','partially paid')");
+    $unpaid = $res ? (int) ($res->fetch_assoc()['cnt'] ?? 0) : 0;
+} catch (Throwable $e) {
     $paid = $admitted = $pending = $unpaid = 0;
 }
 
@@ -40,16 +48,27 @@ $stats = [
 // Pagination / customers
 $offset = ($page - 1) * $perPage;
 try {
-    $countStmt = $pdo->query("SELECT COUNT(*) FROM customers");
-    $totalItems = (int) $countStmt->fetchColumn();
+    $countRes = $conn->query("SELECT COUNT(*) AS cnt FROM customers");
+    $totalItems = $countRes ? (int) ($countRes->fetch_assoc()['cnt'] ?? 0) : 0;
 
-    $sql = "SELECT c.*, DATE_FORMAT(c.last_contacted_at, '%m/%d/%Y - %h:%i %p') AS last_contacted_formatted FROM customers c ORDER BY c.id ASC LIMIT :limit OFFSET :offset";
-    $stmt = $pdo->prepare($sql);
-    $stmt->bindValue(':limit', $perPage, PDO::PARAM_INT);
-    $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
-    $stmt->execute();
-    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
-} catch (PDOException $e) {
+    $sql = "SELECT c.id, c.full_name, c.email, c.phone, c.tier, c.created_at FROM customers c ORDER BY c.id ASC LIMIT ? OFFSET ?";
+    $stmt = $conn->prepare($sql);
+    if ($stmt === false) {
+        throw new RuntimeException('Prepare failed: ' . $conn->error);
+    }
+    $stmt->bind_param('ii', $perPage, $offset);
+    if (!$stmt->execute()) {
+        throw new RuntimeException('Execute failed: ' . $stmt->error);
+    }
+    $result = $stmt->get_result();
+    $rows = [];
+    if ($result) {
+        while ($r = $result->fetch_assoc()) {
+            $rows[] = $r;
+        }
+    }
+    $stmt->close();
+} catch (Throwable $e) {
     $rows = [];
     $totalItems = 0;
 }
@@ -103,8 +122,14 @@ $perPage = $perPage;
 $scripts = ['js/customer-buttons.js'];
 
 // Render using layout and the component view
+
 require __DIR__ . '/../layouts/header.php';
 require __DIR__ . '/customer_list.view.php';
 require __DIR__ . '/../layouts/footer.php';
+
+// Close DB connection (development: ensure connection closed)
+if ($conn instanceof mysqli) {
+    closeDBConnection($conn);
+}
 
 

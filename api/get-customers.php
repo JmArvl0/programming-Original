@@ -4,38 +4,77 @@ require_once '../config/database.php';
 header('Content-Type: application/json');
 
 try {
-    $customerId = $_GET['id'] ?? 0;
+    $customerId = (int) ($_GET['id'] ?? 0);
     
     if (!$customerId) {
         throw new Exception('Customer ID is required');
     }
     
-    // Get customer details
-    $sql = "SELECT 
-                c.*,
-                CASE 
-                    WHEN c.payment_status = 'paid' THEN 'bg-success'
-                    WHEN c.payment_status = 'partially paid' THEN 'bg-warning'
-                    WHEN c.payment_status = 'overdue' THEN 'bg-danger'
-                    ELSE 'bg-secondary'
-                END as payment_badge_class,
-                CASE 
-                    WHEN c.status = 'finished' THEN 'bg-success'
-                    WHEN c.status = 'processing' THEN 'bg-primary'
-                    WHEN c.status = 'pending' THEN 'bg-warning'
-                    WHEN c.status = 'cancelled' THEN 'bg-danger'
-                    ELSE 'bg-info'
-                END as status_badge_class
-            FROM customers c
-            WHERE c.id = :id";
+    $conn = getDBConnection();
+    if (!($conn instanceof mysqli)) {
+        throw new Exception('Database connection failed');
+    }
     
-    $stmt = $pdo->prepare($sql);
-    $stmt->execute([':id' => $customerId]);
-    $customer = $stmt->fetch(PDO::FETCH_ASSOC);
+    // Get customer details  
+    $sql = "SELECT 
+                c.id,
+                c.full_name,
+                c.email,
+                c.phone,
+                c.tier,
+                c.created_at,
+                c.updated_at,
+                COALESCE(b.payment_status, 'unpaid') as payment_status,
+                COALESCE(b.booking_status, 'pending') as status
+            FROM customers c
+            LEFT JOIN (
+                SELECT customer_id, payment_status, booking_status
+                FROM bookings
+                ORDER BY updated_at DESC, id DESC
+                LIMIT 1
+            ) b ON b.customer_id = c.id
+            WHERE c.id = ?";
+    
+    $stmt = $conn->prepare($sql);
+    if (!$stmt) {
+        throw new Exception('Prepare failed: ' . $conn->error);
+    }
+    
+    $stmt->bind_param('i', $customerId);
+    if (!$stmt->execute()) {
+        throw new Exception('Execute failed: ' . $stmt->error);
+    }
+    
+    $result = $stmt->get_result();
+    $customer = $result->fetch_assoc();
+    $stmt->close();
+    closeDBConnection($conn);
     
     if (!$customer) {
         throw new Exception('Customer not found');
     }
+    
+    // Derive badge classes
+    $paymentStatus = strtolower($customer['payment_status'] ?? 'unpaid');
+    $status = strtolower($customer['status'] ?? 'pending');
+    
+    $paymentBadgeClass = match($paymentStatus) {
+        'paid' => 'bg-success',
+        'partially paid' => 'bg-warning',
+        'overdue' => 'bg-danger',
+        default => 'bg-secondary'
+    };
+    
+    $statusBadgeClass = match($status) {
+        'finished' => 'bg-success',
+        'processing' => 'bg-primary',
+        'pending' => 'bg-warning',
+        'cancelled' => 'bg-danger',
+        default => 'bg-info'
+    };
+    
+    $customer['payment_badge_class'] = $paymentBadgeClass;
+    $customer['status_badge_class'] = $statusBadgeClass;
     
     echo json_encode([
         'success' => true,

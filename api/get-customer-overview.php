@@ -60,9 +60,9 @@ try {
 
     $conn = getDBConnection();
 
-    // Basic customer info
+    // Basic customer info - removed non-existent status and payment_status from customers
     $stmt = $conn->prepare(
-        "SELECT id, full_name, email, status, tier, payment_status, last_contacted_at
+        "SELECT id, full_name, email, tier, NULL AS status, NULL AS payment_status, NULL AS last_contacted_at
          FROM customers
          WHERE id = ?
          LIMIT 1"
@@ -105,10 +105,11 @@ try {
 
     // Passport & Visa summary (latest application + document rollup)
     $stmt = $conn->prepare(
-        "SELECT id, documents_status, application_status
-         FROM passport_applications
-         WHERE customer_id = ?
-         ORDER BY updated_at DESC, id DESC
+        "SELECT pa.id, pa.documents_status, pa.application_status
+         FROM passport_applications pa
+         INNER JOIN bookings b ON pa.booking_id = b.id
+         WHERE b.customer_id = ?
+         ORDER BY pa.updated_at DESC, pa.id DESC
          LIMIT 1"
     );
     if (!$stmt) {
@@ -180,8 +181,7 @@ try {
     $stmt = $conn->prepare(
         "SELECT b.booking_status, b.payment_status
          FROM bookings b
-         INNER JOIN guests g ON g.id = b.guest_id
-         WHERE g.customer_id = ?
+         WHERE b.customer_id = ?
          ORDER BY b.updated_at DESC, b.id DESC
          LIMIT 1"
     );
@@ -211,11 +211,11 @@ try {
 
     // Facilities & Reservation summary
     $stmt = $conn->prepare(
-        "SELECT fr.status AS reservation_status
-         FROM facility_reservations fr
-         WHERE fr.customer_id = ?
-         ORDER BY fr.updated_at DESC, fr.id DESC
-         LIMIT 1"
+        "SELECT fr.* FROM account_executive ae
+JOIN bookings b ON ae.booking_id = b.id
+JOIN customers c ON b.customer_id = c.id
+LEFT JOIN facility_reservations fr ON fr.booking_id = ae.booking_id
+WHERE c.id = ?"
     );
     if (!$stmt) {
         throw new RuntimeException('Unable to prepare facility reservation query.');
@@ -228,7 +228,8 @@ try {
     $stmt = $conn->prepare(
         "SELECT p.status AS payment_status
          FROM payments p
-         WHERE p.customer_id = ?
+         INNER JOIN bookings b ON p.booking_id = b.id
+         WHERE b.customer_id = ?
          ORDER BY p.updated_at DESC, p.id DESC
          LIMIT 1"
     );
@@ -266,13 +267,8 @@ try {
                 'full_name' => (string) ($customer['full_name'] ?? ''),
                 'email' => (string) ($customer['email'] ?? ''),
                 'phone' => (string) ($customer['phone'] ?? ''),
-                'destination' => (string) ($customer['destination'] ?? ''),
-                'payment_status' => (string) ($customer['payment_status'] ?? 'unpaid'),
-                'progress' => (int) ($customer['progress'] ?? 0),
                 'tier' => (string) ($customer['tier'] ?? 'new'),
-                'admission_status' => (string) ($customer['admission_status'] ?? 'pending'),
-                'refund_flag' => (int) ($customer['refund_flag'] ?? 0),
-                'overall_status' => (string) ($customer['status'] ?? 'pending'),
+                'overall_status' => 'pending',
                 'status' => (string) ($customer['status'] ?? 'pending')
             ],
             'crm' => [

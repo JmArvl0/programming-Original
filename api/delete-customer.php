@@ -5,35 +5,47 @@ header('Content-Type: application/json');
 
 try {
     $input = json_decode(file_get_contents('php://input'), true);
-    $customerId = $input['id'] ?? 0;
+    $customerId = (int) ($input['id'] ?? 0);
     
     if (!$customerId) {
         throw new Exception('Customer ID is required');
     }
     
-    // Start transaction
-    $pdo->beginTransaction();
-    
-    // Delete related records
-    $tables = [
-        'facility_coordination_status' => "DELETE FROM facility_coordination_status WHERE facility_reservation_id IN (SELECT id FROM facility_reservations WHERE customer_id = ?)",
-        'facility_reservations' => "DELETE FROM facility_reservations WHERE customer_id = ?",
-        'payment_reminders' => "DELETE FROM payment_reminders WHERE payment_id IN (SELECT id FROM payments WHERE customer_id = ?)",
-        'payments' => "DELETE FROM payments WHERE customer_id = ?",
-        'passport_documents' => "DELETE FROM passport_documents WHERE passport_application_id IN (SELECT id FROM passport_applications WHERE customer_id = ?)",
-        'passport_applications' => "DELETE FROM passport_applications WHERE customer_id = ?",
-        'bookings' => "DELETE FROM bookings WHERE guest_id IN (SELECT id FROM guests WHERE customer_id = ?)",
-        'guests' => "DELETE FROM guests WHERE customer_id = ?",
-        'crm_interactions' => "DELETE FROM crm_interactions WHERE customer_id = ?",
-        'customers' => "DELETE FROM customers WHERE id = ?"
-    ];
-    
-    foreach($tables as $sql) {
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute([$customerId]);
+    $conn = getDBConnection();
+    if (!($conn instanceof mysqli)) {
+        throw new Exception('Database connection failed');
     }
     
-    $pdo->commit();
+    // Start transaction
+    $conn->begin_transaction();
+    
+    // Delete related records - use booking_id relationships
+    $queries = [
+        "DELETE FROM facility_coordination_status WHERE facility_reservation_id IN (SELECT fr.id FROM facility_reservations fr INNER JOIN bookings b ON fr.booking_id = b.id WHERE b.customer_id = ?)",
+        "DELETE FROM facility_reservations WHERE booking_id IN (SELECT id FROM bookings WHERE customer_id = ?)",
+        "DELETE FROM payment_reminders WHERE payment_id IN (SELECT p.id FROM payments p INNER JOIN bookings b ON p.booking_id = b.id WHERE b.customer_id = ?)",
+        "DELETE FROM payments WHERE booking_id IN (SELECT id FROM bookings WHERE customer_id = ?)",
+        "DELETE FROM passport_documents WHERE passport_application_id IN (SELECT pa.id FROM passport_applications pa INNER JOIN bookings b ON pa.booking_id = b.id WHERE b.customer_id = ?)",
+        "DELETE FROM passport_applications WHERE booking_id IN (SELECT id FROM bookings WHERE customer_id = ?)",
+        "DELETE FROM bookings WHERE customer_id = ?",
+        "DELETE FROM crm_interactions WHERE customer_id = ?",
+        "DELETE FROM customers WHERE id = ?"
+    ];
+    
+    foreach($queries as $sql) {
+        $stmt = $conn->prepare($sql);
+        if (!$stmt) {
+            throw new Exception('Prepare failed: ' . $conn->error);
+        }
+        $stmt->bind_param('i', $customerId);
+        if (!$stmt->execute()) {
+            throw new Exception('Execute failed: ' . $stmt->error);
+        }
+        $stmt->close();
+    }
+    
+    $conn->commit();
+    closeDBConnection($conn);
     
     echo json_encode([
         'success' => true,

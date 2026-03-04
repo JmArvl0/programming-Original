@@ -260,14 +260,13 @@ class AccountExecutiveController extends BaseController
                     $conn->begin_transaction();
 
                     $queries = [
-                        "DELETE FROM facility_coordination_status WHERE facility_reservation_id IN (SELECT id FROM facility_reservations WHERE customer_id = ?)",
-                        "DELETE FROM facility_reservations WHERE customer_id = ?",
-                        "DELETE FROM payment_reminders WHERE payment_id IN (SELECT id FROM payments WHERE customer_id = ?)",
-                        "DELETE FROM payments WHERE customer_id = ?",
-                        "DELETE FROM passport_documents WHERE passport_application_id IN (SELECT id FROM passport_applications WHERE customer_id = ?)",
-                        "DELETE FROM passport_applications WHERE customer_id = ?",
-                        "DELETE FROM bookings WHERE guest_id IN (SELECT id FROM guests WHERE customer_id = ?)",
-                        "DELETE FROM guests WHERE customer_id = ?",
+                        "DELETE FROM facility_coordination_status WHERE facility_reservation_id IN (SELECT fr.id FROM facility_reservations fr INNER JOIN bookings b ON fr.booking_id = b.id WHERE b.customer_id = ?)",
+                        "DELETE FROM facility_reservations WHERE booking_id IN (SELECT id FROM bookings WHERE customer_id = ?)",
+                        "DELETE FROM payment_reminders WHERE payment_id IN (SELECT p.id FROM payments p INNER JOIN bookings b ON p.booking_id = b.id WHERE b.customer_id = ?)",
+                        "DELETE FROM payments WHERE booking_id IN (SELECT id FROM bookings WHERE customer_id = ?)",
+                        "DELETE FROM passport_documents WHERE passport_application_id IN (SELECT pa.id FROM passport_applications pa INNER JOIN bookings b ON pa.booking_id = b.id WHERE b.customer_id = ?)",
+                        "DELETE FROM passport_applications WHERE booking_id IN (SELECT id FROM bookings WHERE customer_id = ?)",
+                        "DELETE FROM bookings WHERE customer_id = ?",
                         "DELETE FROM crm_interactions WHERE customer_id = ?",
                         "DELETE FROM customers WHERE id = ?"
                     ];
@@ -372,7 +371,11 @@ class AccountExecutiveController extends BaseController
 
         // CRM engagement step: considered done when recent engagement is active.
         $latestInteraction = null;
-        $stmt = $conn->prepare("SELECT MAX(created_at) AS latest_interaction FROM crm_interactions WHERE customer_id = ?");
+        $stmt = $conn->prepare("SELECT MAX(ci.created_at) AS latest_interaction FROM account_executive ae
+JOIN bookings b ON ae.booking_id = b.id
+JOIN customers c ON b.customer_id = c.id
+LEFT JOIN crm_interactions ci ON ci.customer_id = c.id
+WHERE c.id = ?");
         if ($stmt) {
             $stmt->bind_param('i', $customerId);
             $stmt->execute();
@@ -390,10 +393,11 @@ class AccountExecutiveController extends BaseController
         // Passport steps (latest application): document submission, verification, compliance.
         $passportApp = null;
         $stmt = $conn->prepare(
-            "SELECT id, documents_status, application_status
-             FROM passport_applications
-             WHERE customer_id = ?
-             ORDER BY updated_at DESC, id DESC
+            "SELECT pa.id, pa.documents_status, pa.application_status
+             FROM passport_applications pa
+             INNER JOIN bookings b ON pa.booking_id = b.id
+             WHERE b.customer_id = ?
+             ORDER BY pa.updated_at DESC, pa.id DESC
              LIMIT 1"
         );
         if ($stmt) {
@@ -446,8 +450,7 @@ class AccountExecutiveController extends BaseController
         $stmt = $conn->prepare(
             "SELECT b.booking_status, b.payment_status
              FROM bookings b
-             INNER JOIN guests g ON g.id = b.guest_id
-             WHERE g.customer_id = ?
+             WHERE b.customer_id = ?
              ORDER BY b.updated_at DESC, b.id DESC
              LIMIT 1"
         );
@@ -469,10 +472,11 @@ class AccountExecutiveController extends BaseController
         // Facilities reservation + payment.
         $reservationStatus = null;
         $stmt = $conn->prepare(
-            "SELECT status
-             FROM facility_reservations
-             WHERE customer_id = ?
-             ORDER BY updated_at DESC, id DESC
+            "SELECT fr.status
+             FROM facility_reservations fr
+             INNER JOIN bookings b ON fr.booking_id = b.id
+             WHERE b.customer_id = ?
+             ORDER BY fr.updated_at DESC, fr.id DESC
              LIMIT 1"
         );
         if ($stmt) {
@@ -488,10 +492,11 @@ class AccountExecutiveController extends BaseController
 
         $paymentStatus = null;
         $stmt = $conn->prepare(
-            "SELECT status
-             FROM payments
-             WHERE customer_id = ?
-             ORDER BY updated_at DESC, id DESC
+            "SELECT p.status
+             FROM payments p
+             INNER JOIN bookings b ON p.booking_id = b.id
+             WHERE b.customer_id = ?
+             ORDER BY p.updated_at DESC, p.id DESC
              LIMIT 1"
         );
         if ($stmt) {
@@ -502,7 +507,7 @@ class AccountExecutiveController extends BaseController
             $stmt->close();
         }
         if ($paymentStatus === null) {
-            $stmt = $conn->prepare("SELECT payment_status FROM customers WHERE id = ? LIMIT 1");
+            $stmt = $conn->prepare("SELECT b.payment_status FROM bookings b WHERE b.customer_id = ? ORDER BY b.updated_at DESC LIMIT 1");
             if ($stmt) {
                 $stmt->bind_param('i', $customerId);
                 $stmt->execute();

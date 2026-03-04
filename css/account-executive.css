@@ -41,7 +41,7 @@ body { background:#f8f9fa; }
 /* OVERVIEW */
 .overview-cards {
     display:grid;
-    grid-template-columns:repeat(auto-fit,minmax(140px,1fr));
+    grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
     gap:8px;
     margin-bottom:10px;
 }
@@ -51,30 +51,43 @@ body { background:#f8f9fa; }
     padding:6px 9px;
     border-radius:8px;
     display:flex;
-    gap:7px;
+    gap:10px;
     align-items:center;
     box-shadow:0 1px 6px rgba(0,0,0,.05);
     border-left:3px solid var(--primary);
-    min-height:42px;
+    min-height:80px;
 }
 .overview-card:nth-child(2){border-left-color:var(--success);}
 .overview-card:nth-child(3){border-left-color:var(--warning);}
 .overview-card:nth-child(4){border-left-color:var(--danger);}
 
 .icon-box {
-    width:32px;
-    height:32px;
+    width:60px;
+    height:60px;
     display:flex;
     align-items:center;
     justify-content:center;
     border-radius:7px;
-    font-size:1rem;
+    font-size:1.25rem;
     background:rgba(0,0,0,.02);
     flex:0 0 32px;
 }
 
-.overview-card small { display:block; font-size:0.78rem; color:#666; line-height:1.2; margin-bottom:1px; }
-.overview-card h4 { margin:0; font-size:1.05rem; line-height:1.1; font-weight:600; color:var(--primary); }
+.overview-card small { 
+    display:block; 
+    font-size:1rem; 
+    color:#666; 
+    line-height:1.2; 
+    margin-bottom:1px; 
+}
+
+.overview-card h4 { 
+    margin:0; 
+    font-size:1.25rem; 
+    line-height:1.1; 
+    font-weight:600; 
+    color:var(--primary); 
+}
 
 /* TABLE CARD */
 .table-section {
@@ -89,11 +102,12 @@ body { background:#f8f9fa; }
     overflow: hidden;
 }
 
-        opacity: 0;
-        transition: opacity .25s ease;
-        visibility: hidden;
-        /* disable legacy backdrop so Bootstrap modal backdrop works */
-        display: none !important;
+.filter-tabs {
+    opacity: 0;
+    transition: opacity .25s ease;
+    visibility: hidden;
+    /* disable legacy backdrop so Bootstrap modal backdrop works */
+    display: none !important;
     display: flex;
     flex-wrap: wrap;
     padding-left: 0;

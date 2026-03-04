@@ -39,7 +39,7 @@ class PassportVisaController extends BaseController
 
         $pageData = $this->passportVisaModel->getApplicantsPage($page, $perPage, $filter, $search);
         $applicants = array_map([$this, 'prepareApplicantForView'], $pageData['items']);
-        $stats = $this->passportVisaModel->buildStats($pageData['allFiltered']);
+        $stats = $this->passportVisaModel->buildStats();
 
         $pagination = $this->buildPaginationData(
             $pageData['page'],
@@ -95,8 +95,8 @@ class PassportVisaController extends BaseController
 
     private function prepareApplicantForView(array $applicant): array
     {
-        $documentsText = (string) ($applicant['documents']['text'] ?? '');
-        $applicationText = (string) ($applicant['application']['text'] ?? '');
+        $documentsText = (string) ($applicant['documents_status'] ?? 'not started');
+        $applicationText = (string) ($applicant['application_status'] ?? 'not started');
 
         return $applicant + [
             'documentsNormalized' => $this->normalizeStatus($documentsText),
@@ -150,15 +150,35 @@ class PassportVisaController extends BaseController
                     'data' => $applicant
                 ]);
                 return;
+                
             case 'update-applicant':
-                $applicantId = (int) ($payload['applicantId'] ?? 0);
-                $result = $this->passportVisaModel->updateApplicantById($applicantId, $payload);
-                if (!($result['ok'] ?? false)) {
-                    $this->jsonResponse($result, 400);
-                    return;
-                }
-                $this->jsonResponse($result);
+            $applicantId = (int) ($payload['applicantId'] ?? 0);
+            if ($applicantId <= 0) {
+                $this->jsonResponse([
+                    'ok' => false,
+                    'message' => 'Invalid applicant ID.'
+                ], 400);
                 return;
+
+            }
+            $success = $this->passportVisaModel->updateApplicantByBookingId($applicantId, $payload);
+            if (!$success) {
+                $this->jsonResponse([
+                    'ok' => false,
+                    'message' => 'Update failed.'
+                ], 400);
+                return;
+
+            }
+            // Return updated data for frontend
+            $updatedApplicant = $this->passportVisaModel->getApplicantById($applicantId);
+            $this->jsonResponse([
+                'ok' => true,
+                'message' => 'Application updated successfully.',
+                'data' => $updatedApplicant
+            ]);
+            return;
+
             case 'upload-document':
                 $this->jsonResponse([
                     'ok' => true,

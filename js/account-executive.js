@@ -357,7 +357,7 @@ document.addEventListener('DOMContentLoaded', function () {
             '          <thead class="table-light">' +
             '            <tr>' +
             '              <th style="width: 45%;">Field Name</th>' +
-            '              <th>Value</th>' +
+            '              <th>Status</th>' +
             '            </tr>' +
             '          </thead>' +
             '          <tbody>' + tableRows + '</tbody>' +

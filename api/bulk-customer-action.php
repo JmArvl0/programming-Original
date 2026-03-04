@@ -12,35 +12,44 @@ try {
         throw new Exception('Action and customer IDs are required');
     }
     
-    // Create placeholders for IN clause
-    $placeholders = implode(',', array_fill(0, count($ids), '?'));
+    $conn = getDBConnection();
+    if (!($conn instanceof mysqli)) {
+        throw new Exception('Database connection failed');
+    }
     
     switch($action) {
         case 'delete':
             // Start transaction
-            $pdo->beginTransaction();
+            $conn->begin_transaction();
             
             try {
-                // Delete related records for multiple customers
-                $tables = [
-                    'facility_coordination_status' => "DELETE FROM facility_coordination_status WHERE facility_reservation_id IN (SELECT id FROM facility_reservations WHERE customer_id IN ($placeholders))",
-                    'facility_reservations' => "DELETE FROM facility_reservations WHERE customer_id IN ($placeholders)",
-                    'payment_reminders' => "DELETE FROM payment_reminders WHERE payment_id IN (SELECT id FROM payments WHERE customer_id IN ($placeholders))",
-                    'payments' => "DELETE FROM payments WHERE customer_id IN ($placeholders)",
-                    'passport_documents' => "DELETE FROM passport_documents WHERE passport_application_id IN (SELECT id FROM passport_applications WHERE customer_id IN ($placeholders))",
-                    'passport_applications' => "DELETE FROM passport_applications WHERE customer_id IN ($placeholders)",
-                    'bookings' => "DELETE FROM bookings WHERE guest_id IN (SELECT id FROM guests WHERE customer_id IN ($placeholders))",
-                    'guests' => "DELETE FROM guests WHERE customer_id IN ($placeholders)",
-                    'crm_interactions' => "DELETE FROM crm_interactions WHERE customer_id IN ($placeholders)",
-                    'customers' => "DELETE FROM customers WHERE id IN ($placeholders)"
+                // Delete related records for multiple customers - use booking_id relationships
+                $deleteQueries = [
+                    "DELETE FROM facility_coordination_status WHERE facility_reservation_id IN (SELECT fr.id FROM facility_reservations fr INNER JOIN bookings b ON fr.booking_id = b.id WHERE b.customer_id IN (" . implode(',', array_fill(0, count($ids), '?')) . "))",
+                    "DELETE FROM facility_reservations WHERE booking_id IN (SELECT id FROM bookings WHERE customer_id IN (" . implode(',', array_fill(0, count($ids), '?')) . "))",
+                    "DELETE FROM payment_reminders WHERE payment_id IN (SELECT p.id FROM payments p INNER JOIN bookings b ON p.booking_id = b.id WHERE b.customer_id IN (" . implode(',', array_fill(0, count($ids), '?')) . "))",
+                    "DELETE FROM payments WHERE booking_id IN (SELECT id FROM bookings WHERE customer_id IN (" . implode(',', array_fill(0, count($ids), '?')) . "))",
+                    "DELETE FROM passport_documents WHERE passport_application_id IN (SELECT pa.id FROM passport_applications pa INNER JOIN bookings b ON pa.booking_id = b.id WHERE b.customer_id IN (" . implode(',', array_fill(0, count($ids), '?')) . "))",
+                    "DELETE FROM passport_applications WHERE booking_id IN (SELECT id FROM bookings WHERE customer_id IN (" . implode(',', array_fill(0, count($ids), '?')) . "))",
+                    "DELETE FROM bookings WHERE customer_id IN (" . implode(',', array_fill(0, count($ids), '?')) . ")",
+                    "DELETE FROM crm_interactions WHERE customer_id IN (" . implode(',', array_fill(0, count($ids), '?')) . ")",
+                    "DELETE FROM customers WHERE id IN (" . implode(',', array_fill(0, count($ids), '?')) . ")"
                 ];
                 
-                foreach($tables as $sql) {
-                    $stmt = $pdo->prepare($sql);
-                    $stmt->execute($ids);
+                foreach($deleteQueries as $sql) {
+                    $stmt = $conn->prepare($sql);
+                    if (!$stmt) {
+                        throw new Exception('Prepare failed: ' . $conn->error);
+                    }
+                    $types = str_repeat('i', count($ids));
+                    $stmt->bind_param($types, ...$ids);
+                    if (!$stmt->execute()) {
+                        throw new Exception('Execute failed: ' . $stmt->error);
+                    }
+                    $stmt->close();
                 }
                 
-                $pdo->commit();
+                $conn->commit();
                 $message = count($ids) . ' customer(s) deleted successfully';
             } catch(Exception $e) {
                 $pdo->rollBack();

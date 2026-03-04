@@ -5,52 +5,38 @@ header('Content-Type: application/json');
 
 try {
     // Get POST data
-    $id = $_POST['id'] ?? 0;
+    $customerId = (int) ($_POST['id'] ?? 0);
     
-    if (!$id) {
+    if (!$customerId) {
         throw new Exception('Customer ID is required');
     }
     
-    // Prepare update query
+    $conn = getDBConnection();
+    if (!($conn instanceof mysqli)) {
+        throw new Exception('Database connection error');
+    }
+    
+    // Update customer info (only valid customer columns)
     $sql = "UPDATE customers SET 
-                full_name = :full_name,
-                email = :email,
-                phone = :phone,
-                destination = :destination,
-                status = :status,
-                payment_status = :payment_status,
-                admission_status = :admission_status,
-                progress = :progress,
-                tier = :tier,
-                refund_flag = :refund_flag,
-                last_contacted_at = :last_contacted_at
-            WHERE id = :id";
+                full_name = ?,
+                email = ?,
+                phone = ?,
+                tier = ?
+            WHERE id = ?";
     
-    $stmt = $pdo->prepare($sql);
+    $stmt = $conn->prepare($sql);
+    if (!$stmt) {
+        throw new Exception('Query prepare failed: ' . $conn->error);
+    }
     
-    // Handle refund flag
-    $refundFlag = isset($_POST['refund_flag']) ? 1 : 0;
+    $fullName = $_POST['full_name'] ?? '';
+    $email = $_POST['email'] ?? '';
+    $phone = $_POST['phone'] ?? '';
+    $tier = $_POST['tier'] ?? 'new';
     
-    // Handle last contacted date
-    $lastContacted = !empty($_POST['last_contacted_at']) 
-        ? $_POST['last_contacted_at'] 
-        : null;
-    
-    // Execute update
-    $result = $stmt->execute([
-        ':id' => $id,
-        ':full_name' => $_POST['full_name'] ?? '',
-        ':email' => $_POST['email'] ?? '',
-        ':phone' => $_POST['phone'] ?? '',
-        ':destination' => $_POST['destination'] ?? '',
-        ':status' => $_POST['status'] ?? 'pending',
-        ':payment_status' => $_POST['payment_status'] ?? 'unpaid',
-        ':admission_status' => $_POST['admission_status'] ?? 'pending',
-        ':progress' => $_POST['progress'] ?? 0,
-        ':tier' => $_POST['tier'] ?? 'new',
-        ':refund_flag' => $refundFlag,
-        ':last_contacted_at' => $lastContacted
-    ]);
+    $stmt->bind_param('ssssi', $fullName, $email, $phone, $tier, $customerId);
+    $result = $stmt->execute();
+    $stmt->close();
     
     if ($result) {
         echo json_encode([

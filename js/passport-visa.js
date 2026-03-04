@@ -20,6 +20,23 @@ document.addEventListener('DOMContentLoaded', function () {
     let activeApplicantId = '';
     let activeApplicantName = '';
 
+    function generatePassportNumber() {
+        const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+        const randomLetter = () => letters[Math.floor(Math.random() * letters.length)];
+        const randomDigit = () => Math.floor(Math.random() * 10);
+
+        // Example format: AB1234C
+        return (
+            randomLetter() +
+            randomLetter() +
+            randomDigit() +
+            randomDigit() +
+            randomDigit() +
+            randomDigit() +
+            randomLetter()
+        );
+    }
+
     const confirmModalElement = document.getElementById('passportApplicantConfirmModal');
     const confirmModal = confirmModalElement ? new bootstrap.Modal(confirmModalElement) : null;
     const confirmOpenUpdateBtn = document.getElementById('passportConfirmOpenUpdateBtn');
@@ -72,13 +89,6 @@ document.addEventListener('DOMContentLoaded', function () {
             if (action === 'update-applicant') {
                 await openApplicantUpdate(applicantId, applicantName);
                 return;
-            }
-
-            try {
-                const result = await callAjaxAction(action, { applicantId });
-                showSuccess(result.message || 'Action completed.');
-            } catch (error) {
-                showError('Unable to process request right now.');
             }
         });
     });
@@ -147,7 +157,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (updateModal) {
                     updateModal.hide();
                 }
-                await openApplicantView(applicantId, activeApplicantName || updated.name || 'Applicant');
             } catch (error) {
                 showError(error.message || 'Unable to save changes.');
             } finally {
@@ -157,6 +166,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    
     async function openApplicantView(applicantId, applicantName) {
         if (!applicantModal || !modalBody || !modalTitle) {
             showError('Applicant modal is unavailable.');
@@ -164,178 +174,68 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         modalTitle.textContent = 'Applicant Overview - ' + applicantName;
-        activeApplicantId = String(applicantId || '');
-        activeApplicantName = applicantName || '';
-        modalBody.innerHTML = '' +
-            '<div class="text-center py-5">' +
-            '  <div class="spinner-border text-primary mb-3" role="status"><span class="visually-hidden">Loading...</span></div>' +
-            '  <div class="text-muted">Loading applicant details...</div>' +
-            '</div>';
-        applicantModal.show();
+        modalBody.innerHTML = '<p>Loading...</p>'; // Placeholder while loading
 
         try {
-            const result = await callAjaxAction('fetch-applicant-detail', { applicantId: applicantId });
-            if (!(result && result.ok && result.data)) {
+            const result = await callAjaxAction('fetch-applicant-detail', { applicantId });
+
+            if (result && result.ok) {
+                if (result.data) {
+                    renderApplicantOverview(result.data); // Render the applicant details
+                } else {
+                    modalBody.innerHTML = '<p>No details available for this applicant.</p>';
+                }
+            } else {
                 throw new Error((result && result.message) || 'Failed to load applicant details.');
             }
-            renderApplicantOverview(result.data);
         } catch (error) {
-            modalBody.innerHTML =
-                '<div class="alert alert-danger mb-0">' +
-                '<i class="fa fa-exclamation-triangle me-2"></i>' +
-                escapeHtml(error.message || 'Unable to load applicant details.') +
-                '</div>';
-        }
-    }
-
-    async function openApplicantUpdate(applicantId, applicantName) {
-        if (!updateModal) {
-            showError('Update modal is unavailable.');
-            return;
+            modalBody.innerHTML = '<p>Error loading applicant details: ' + error.message + '</p>';
         }
 
-        const result = await callAjaxAction('fetch-applicant-detail', { applicantId: applicantId });
-        if (!(result && result.ok && result.data)) {
-            throw new Error((result && result.message) || 'Unable to load applicant data.');
-        }
-
-        const data = result.data || {};
-        const passport = data.passport || {};
-        const documents = (data.documents && data.documents.text) ? data.documents.text : 'Not Started';
-        const application = (data.application && data.application.text) ? data.application.text : 'Not Started';
-
-        activeApplicantId = String(applicantId || '');
-        activeApplicantName = applicantName || data.name || '';
-
-        if (updateModalTitle) {
-            updateModalTitle.textContent = 'Update Application - ' + (activeApplicantName || 'Applicant');
-        }
-        if (updateApplicantIdInput) updateApplicantIdInput.value = String(applicantId || '');
-        if (updateNumberInput) updateNumberInput.value = passport.number || '';
-        if (updateCountryInput) updateCountryInput.value = data.country || '';
-        if (updateDocumentsStatusInput) updateDocumentsStatusInput.value = normalizeStatusValue(documents);
-        if (updateApplicationStatusInput) updateApplicationStatusInput.value = normalizeStatusValue(application);
-        if (updateSubmissionDateInput) updateSubmissionDateInput.value = data.submissionDateIso || '';
-        if (updateRemarksInput) updateRemarksInput.value = data.remarks || '';
-
-        updateModal.show();
+        applicantModal.show();
     }
 
     function renderApplicantOverview(data) {
-        if (!modalBody) {
-            return;
-        }
-
-        const name = data.name || 'N/A';
+        const name = data.full_name || 'N/A';
         const email = data.email || 'N/A';
         const phone = data.phone || 'N/A';
-        const country = data.country || 'N/A';
-        const passport = data.passport || {};
-        const documents = data.documents || {};
-        const application = data.application || {};
-        const passportImage = data.passportImagePath || 'assets/LOGO.png';
-        const oneByOneImage = data.oneByOneImagePath || 'assets/LOGO.png';
-        const remarks = data.remarks || 'No remarks provided.';
 
-        modalBody.innerHTML = '' +
-            '<div class="ae-overview">' +
-            '  <div class="mb-4">' +
-            '    <h6 class="fw-bold border-bottom pb-2 mb-3">Basic Customer Information</h6>' +
-            '    <div class="row g-3">' +
-            '      <div class="col-md-4"><div class="text-muted small">Customer Name</div><div class="fw-semibold">' + escapeHtml(name) + '</div></div>' +
-            '      <div class="col-md-4"><div class="text-muted small">Email</div><div class="fw-semibold">' + escapeHtml(email) + '</div></div>' +
-            '      <div class="col-md-4"><div class="text-muted small">Phone</div><div class="fw-semibold">' + escapeHtml(phone) + '</div></div>' +
-            '    </div>' +
-            '  </div>' +
-            '  <div class="row g-3 mb-3">' +
-            passportCard('Passport & Visa Details', [
-                ['Passport Number', escapeHtml(passport.number || 'N/A')],
-                ['Passport Status', badgeHtml(passport.desc || 'Pending')],
-                ['Country', escapeHtml(country)],
-                ['Issue Date', escapeHtml(passport.issueDate || 'N/A')],
-                ['Expiry Date', escapeHtml(passport.expiryDate || 'N/A')],
-                ['Submission Date', escapeHtml(data.submissionDate || 'N/A')]
-            ]) +
-            passportCard('Processing Status', [
-                ['Documents', badgeHtml(documents.text || 'Not Started')],
-                ['Application', badgeHtml(application.text || 'Not Started')],
-                ['Remarks', escapeHtml(remarks)]
-            ]) +
-            '  </div>' +
-            '  <div class="row g-3">' +
-            imageCard('Passport Image', passportImage, 'Passport image not available') +
-            imageCard('Latest 1x1 Photo', oneByOneImage, '1x1 photo not available') +
-            '  </div>' +
-            '</div>';
-    }
+        const passportImage = data.passport_image || 'assets/no-image.png';
+        const oneByOneImage = data.one_by_one_image || 'assets/no-image.png';
 
-    function updateRowAfterSave(updated) {
-        if (!updated || !updated.id) {
-            return;
-        }
-        const row = document.querySelector('button.js-applicant-action[data-action="view"][data-id="' + updated.id + '"]')?.closest('tr');
-        if (!row) {
-            return;
-        }
+        modalBody.innerHTML = `
+            <div>
 
-        const passportNumber = updated.passport && updated.passport.number ? updated.passport.number : 'N/A';
-        const country = updated.country || 'N/A';
-        const documentsText = updated.documents && updated.documents.text ? updated.documents.text : 'Not Started';
-        const applicationText = updated.application && updated.application.text ? updated.application.text : 'Not Started';
+                <h5 class="mb-3">Basic Customer Information</h5>
+                <p><strong>Customer Name:</strong> ${escapeHtml(name)}</p>
+                <p><strong>Email:</strong> ${escapeHtml(email)}</p>
+                <p><strong>Phone:</strong> ${escapeHtml(phone)}</p>
 
-        row.dataset.country = country;
-        row.dataset.passportNumber = passportNumber;
-        row.dataset.documents = normalizeStatusValue(documentsText);
-        row.dataset.application = normalizeStatusValue(applicationText);
-        row.dataset.date = updated.submissionDateIso || row.dataset.date || '';
+                <hr class="my-4">
 
-        if (row.cells[3]) {
-            row.cells[3].innerHTML = '<span class="status-dot status-green"></span> ' + escapeHtml(passportNumber);
-        }
-        if (row.cells[4]) {
-            row.cells[4].textContent = country;
-        }
-        if (row.cells[5]) {
-            row.cells[5].innerHTML = '<span class="badge rounded-pill ' + badgeClass(documentsText) + '">' + escapeHtml(documentsText) + '</span>';
-        }
-        if (row.cells[6]) {
-            row.cells[6].innerHTML = '<span class="badge rounded-pill ' + badgeClass(applicationText) + '">' + escapeHtml(applicationText) + '</span>';
-        }
-    }
+                <h5 class="mb-3">Passport & Visa Details</h5>
 
-    function normalizeStatusValue(value) {
-        return String(value || '')
-            .trim()
-            .toLowerCase()
-            .replace(/_/g, ' ');
-    }
+                <div class="details-table">
+                    ${detailRow('Passport Number', data.passport_number)}
+                    ${detailRow('Country', data.country)}
+                    ${detailRow('Documents Status', badgeHtml(data.documents_status))}
+                    ${detailRow('Application Status', badgeHtml(data.application_status))}
+                    ${detailRow('Submission Date', formatDate(data.submission_date))}
+                    ${detailRow('Remarks', data.remarks)}
+                </div>
 
-    function passportCard(title, rows) {
-        let rowsHtml = '';
-        rows.forEach(function (row) {
-            rowsHtml += '' +
-                '<tr>' +
-                '  <th style="width: 38%;">' + escapeHtml(row[0]) + '</th>' +
-                '  <td>' + row[1] + '</td>' +
-                '</tr>';
-        });
+                <div class="mt-4">
+                    ${imageBlock('Passport Image', passportImage)}
+                    ${imageBlock('1x1 Photo', oneByOneImage)}
+                </div>
 
-        return '' +
-            '<div class="col-md-6">' +
-            '  <div class="card h-100 shadow-sm">' +
-            '    <div class="card-header fw-semibold bg-light">' + escapeHtml(title) + '</div>' +
-            '    <div class="card-body p-0">' +
-            '      <div class="table-responsive">' +
-            '        <table class="table table-sm table-bordered mb-0 align-middle"><tbody>' + rowsHtml + '</tbody></table>' +
-            '      </div>' +
-            '    </div>' +
-            '  </div>' +
-            '</div>';
+            </div>
+        `;
     }
 
     function imageCard(title, src, alt) {
         return '' +
-            '<div class="col-md-6">' +
+            '<div class="col-md-4">' +
             '  <div class="card h-100 shadow-sm">' +
             '    <div class="card-header fw-semibold bg-light">' + escapeHtml(title) + '</div>' +
             '    <div class="card-body text-center">' +
@@ -343,6 +243,28 @@ document.addEventListener('DOMContentLoaded', function () {
             '    </div>' +
             '  </div>' +
             '</div>';
+    }
+
+    function passportCard(title, rows) {
+        let rowsHtml = '';
+
+        rows.forEach(function (row) {
+            rowsHtml += `
+                <div class="detail-row">
+                    <div class="detail-label">${escapeHtml(row[0])}</div>
+                    <div class="detail-value">${row[1]}</div>
+                </div>
+            `;
+        });
+
+        return `
+            <div class="col-md-4">
+                <div class="passport-details-wrapper">
+                    <h6 class="mb-3 fw-bold">${escapeHtml(title)}</h6>
+                    ${rowsHtml}
+                </div>
+            </div>
+        `;
     }
 
     function badgeHtml(value) {
@@ -364,9 +286,41 @@ document.addEventListener('DOMContentLoaded', function () {
         return 'bg-warning text-dark';
     }
 
-    function escapeHtml(value) {
-        const div = document.createElement('div');
-        div.textContent = String(value || '');
-        return div.innerHTML;
+    function formatDate(dateStr) {
+        if (!dateStr || dateStr === '0000-00-00') return 'N/A';
+        const date = new Date(dateStr);
+        return date.toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
     }
+
+    function escapeHtml(value) {
+            const div = document.createElement('div');
+            div.textContent = String(value || '');
+            return div.innerHTML;
+        }
+
+        function detailRow(label, value) {
+        return `
+            <div class="detail-row-horizontal">
+                <div class="detail-label">${escapeHtml(label)}</div>
+                <div class="detail-value">${value ? value : 'N/A'}</div>
+            </div>
+        `;
+    }
+
+    function imageBlock(title, src) {
+        return `
+            <div class="image-block mb-4">
+                <h6 class="fw-semibold mb-2">${escapeHtml(title)}</h6>
+                <div class="image-wrapper text-center">
+                    <img src="${escapeHtml(src)}"
+                        class="img-fluid rounded border">
+                </div>
+            </div>
+        `;
+    }
+
 });

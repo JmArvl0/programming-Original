@@ -20,7 +20,7 @@ a{color:var(--primary-color); text-decoration:none}
 a:hover{text-decoration:underline}
 
 /* Content wrapper used across views */
-.content-container{padding:20px; max-width:1200px; margin:0 auto}
+.content-container{padding:20px; max-width:1500px; margin:0 auto}
 
 /* Utility grid & card helpers */
 .grid{display:grid; gap:16px}

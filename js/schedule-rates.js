@@ -378,4 +378,25 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     renderPage(1);
+
+    // Trigger card animations by adding .play class to tour-cards-grid
+    function triggerCardAnimations() {
+        const tourGrids = document.querySelectorAll('.tour-cards-grid');
+        tourGrids.forEach((grid) => {
+            grid.classList.add('play');
+        });
+    }
+
+    // Trigger animations on initial page load
+    triggerCardAnimations();
+
+    // Also trigger animations after AJAX updates
+    const observer = new MutationObserver(function() {
+        triggerCardAnimations();
+    });
+
+    const tourCardsContainer = document.querySelector('.tour-rates-view-wrap') || document.querySelector('.tour-booking-panel');
+    if (tourCardsContainer) {
+        observer.observe(tourCardsContainer, { childList: true, subtree: true });
+    }
 });
