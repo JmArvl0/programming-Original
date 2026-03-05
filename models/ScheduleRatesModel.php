@@ -26,7 +26,7 @@ class ScheduleRatesModel
         }
 
         try {
-            $conn = @new mysqli(DB_HOST, DB_USER, defined('DB_PASS') ? DB_PASS : '', DB_NAME);
+            $conn = new mysqli(DB_HOST, DB_USER, defined('DB_PASS') ? DB_PASS : '', DB_NAME, defined('DB_PORT') ? DB_PORT : 3306);
         } catch (Throwable $e) {
             return null;
         }
@@ -660,6 +660,29 @@ class ScheduleRatesModel
                 'status' => $this->calculateAvailabilityStatus($booked, $capacity)
             ];
         }
+
+        if ($tourList !== []) {
+            return $tourList;
+        }
+
+        // If no tours exist on the selected date, surface a compact fallback list
+        // so the schedule panel still renders actionable tour cards.
+        $fallbackSlice = array_slice($tours, 0, 6);
+        foreach ($fallbackSlice as $tour) {
+            $capacity = max((int) ($tour['capacity'] ?? 0), 0);
+            $booked = max((int) ($tour['booked'] ?? 0), 0);
+            $tourList[] = [
+                'tour_id' => (string) ($tour['id'] ?? ''),
+                'tour_name' => (string) ($tour['name'] ?? 'N/A'),
+                'destination' => (string) ($tour['destination'] ?? 'N/A'),
+                'departure_time' => null,
+                'capacity' => $capacity,
+                'booked' => $booked,
+                'available' => max($capacity - $booked, 0),
+                'status' => $this->calculateAvailabilityStatus($booked, $capacity)
+            ];
+        }
+
         return $tourList;
     }
 

@@ -15,6 +15,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const nameInput = document.getElementById('customerModalName');
     const emailInput = document.getElementById('customerModalEmail');
     const phoneInput = document.getElementById('customerModalPhone');
+    const documentsStatusInput = document.getElementById('customerModalDocumentsStatus');
     const progressInput = document.getElementById('customerModalProgress');
     const remarksInput = document.getElementById('customerModalRemarks');
     const refundInput = document.getElementById('customerModalRefund');
@@ -86,6 +87,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 name: nameInput ? nameInput.value.trim() : '',
                 email: emailInput ? emailInput.value.trim() : '',
                 phone: phoneInput ? phoneInput.value.trim() : '',
+                documents_status: documentsStatusInput ? documentsStatusInput.value : '',
                 remarks: remarksInput ? remarksInput.value.trim() : '',
                 refund_flag: refundInput && refundInput.checked ? 1 : 0
             };
@@ -212,6 +214,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (nameInput) nameInput.value = customerName || '';
         if (emailInput) emailInput.value = '';
         if (phoneInput) phoneInput.value = '';
+        if (documentsStatusInput) documentsStatusInput.value = row ? (row.dataset.documentsStatus || 'not started') : 'not started';
         if (remarksInput) remarksInput.value = '';
         if (progressInput) progressInput.value = row ? (row.dataset.progress || 0) : 0;
         if (refundInput) refundInput.checked = row ? String(row.dataset.refund || '0') === '1' : false;
@@ -221,6 +224,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (nameInput) nameInput.readOnly = !enabled;
         if (emailInput) emailInput.readOnly = !enabled;
         if (phoneInput) phoneInput.readOnly = !enabled;
+        if (documentsStatusInput) documentsStatusInput.disabled = !enabled;
         if (remarksInput) remarksInput.readOnly = !enabled;
         if (progressInput) progressInput.readOnly = true;
         if (refundInput) refundInput.disabled = !enabled;
@@ -446,6 +450,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
         row.dataset.progress = String(payload.progress || row.dataset.progress || 0);
         row.dataset.refund = String(payload.refund_flag || 0);
+        if (payload.documents_status) {
+            row.dataset.documentsStatus = String(payload.documents_status).toLowerCase();
+        }
 
         if (row.cells[2]) row.cells[2].innerText = payload.name || row.cells[2].innerText;
 
@@ -453,6 +460,14 @@ document.addEventListener('DOMContentLoaded', function () {
             const progress = Number.isFinite(payload.progress) ? payload.progress : parseInt(payload.progress || '0', 10);
             row.cells[6].innerHTML = String(progress) + '%' +
                 '<div class="progress"><div class="progress-bar bg-success" style="width:' + progress + '%"></div></div>';
+        }
+
+        if (row.cells[7] && payload.documents_status) {
+            const normalizedDocumentsStatus = String(payload.documents_status).trim().toLowerCase();
+            row.cells[7].innerHTML =
+                '<span class="badge rounded-pill ' + documentsBadgeClass(normalizedDocumentsStatus) + '">' +
+                escapeHtml(formatDocumentLabel(normalizedDocumentsStatus)) +
+                '</span>';
         }
     }
 
@@ -524,5 +539,35 @@ document.addEventListener('DOMContentLoaded', function () {
         const div = document.createElement('div');
         div.textContent = String(text || '');
         return div.innerHTML;
+    }
+
+    function formatDocumentLabel(value) {
+        const normalized = String(value || '').trim().toLowerCase();
+        if (!normalized) {
+            return 'Not Started';
+        }
+        return normalized.split(' ').map(function (part) {
+            return part.charAt(0).toUpperCase() + part.slice(1);
+        }).join(' ');
+    }
+
+    function documentsBadgeClass(value) {
+        const normalized = String(value || '').trim().toLowerCase();
+        if (['approved', 'complete', 'completed', 'finished', 'verified'].indexOf(normalized) !== -1) {
+            return 'bg-success';
+        }
+        if (['rejected', 'denied', 'failed', 'missing'].indexOf(normalized) !== -1) {
+            return 'bg-danger';
+        }
+        if (normalized === 'cancelled') {
+            return 'bg-warning text-dark';
+        }
+        if (['submitted', 'processing', 'under review'].indexOf(normalized) !== -1) {
+            return 'bg-primary';
+        }
+        if (['pending', 'not started', 'incomplete'].indexOf(normalized) !== -1) {
+            return 'bg-warning text-dark';
+        }
+        return 'bg-secondary';
     }
 });

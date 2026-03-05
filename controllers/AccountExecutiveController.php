@@ -172,6 +172,7 @@ class AccountExecutiveController extends BaseController
                 $email = trim((string) ($payload['email'] ?? ''));
                 $phone = trim((string) ($payload['phone'] ?? ''));
                 $refundFlag = (int) ($payload['refund_flag'] ?? 0) === 1 ? 1 : 0;
+                $documentsStatus = $this->normalizeDocumentsStatus((string) ($payload['documents_status'] ?? ''));
 
                 if ($name === '') {
                     $this->jsonResponse(['ok' => false, 'message' => 'Name is required'], 400);
@@ -215,6 +216,10 @@ class AccountExecutiveController extends BaseController
 
                     $stmt->close();
 
+                    if ($documentsStatus !== null && !$this->upsertPassportDocumentStatus($conn, $customerId, $documentsStatus)) {
+                        throw new RuntimeException('Unable to update passport document status.');
+                    }
+
                     $computedProgress = $this->calculateProgressForCustomer($conn, $customerId);
                     $progressStmt = $conn->prepare("UPDATE customers SET progress = ? WHERE id = ?");
                     if ($progressStmt === false) {
@@ -236,7 +241,8 @@ class AccountExecutiveController extends BaseController
                         'message' => 'Customer updated successfully.',
                         'customer' => [
                             'id' => $customerId,
-                            'progress' => $computedProgress
+                            'progress' => $computedProgress,
+                            'documents_status' => $documentsStatus
                         ]
                     ]);
                 } catch (Throwable $e) {
@@ -362,6 +368,135 @@ class AccountExecutiveController extends BaseController
 
         $decoded = json_decode($raw, true);
         return is_array($decoded) ? $decoded : [];
+    }
+
+    private function normalizeDocumentsStatus(string $value): ?string
+    {
+        $normalized = strtolower(trim($value));
+        if ($normalized === '') {
+            return null;
+        }
+
+        $allowed = [
+            'not started',
+            'missing',
+            'incomplete',
+            'submitted',
+            'processing',
+            'under review',
+            'approved',
+            'verified',
+            'complete',
+            'completed',
+            'rejected',
+            'pending'
+        ];
+
+        if (!in_array($normalized, $allowed, true)) {
+            return null;
+        }
+
+        return $normalized;
+    }
+
+    private function upsertPassportDocumentStatus(mysqli $conn, int $customerId, string $documentsStatus): bool
+    {
+        $bookingId = 0;
+        $bookingStmt = $conn->prepare(
+            "SELECT ae.booking_id
+             FROM account_executive ae
+             INNER JOIN bookings b ON ae.booking_id = b.id
+             WHERE b.customer_id = ?
+             ORDER BY COALESCE(b.updated_at, b.created_at) DESC, b.id DESC
+             LIMIT 1"
+        );
+        if ($bookingStmt) {
+            $bookingStmt->bind_param('i', $customerId);
+            $bookingStmt->execute();
+            $bookingRow = $bookingStmt->get_result()->fetch_assoc();
+            $bookingStmt->close();
+            $bookingId = (int) ($bookingRow['booking_id'] ?? 0);
+        }
+
+        if ($bookingId <= 0) {
+            $fallbackStmt = $conn->prepare(
+                "SELECT id
+                 FROM bookings
+                 WHERE customer_id = ?
+                 ORDER BY COALESCE(updated_at, created_at) DESC, id DESC
+                 LIMIT 1"
+            );
+            if (!$fallbackStmt) {
+                return false;
+            }
+            $fallbackStmt->bind_param('i', $customerId);
+            $fallbackStmt->execute();
+            $fallbackRow = $fallbackStmt->get_result()->fetch_assoc();
+            $fallbackStmt->close();
+            $bookingId = (int) ($fallbackRow['id'] ?? 0);
+        }
+
+        if ($bookingId <= 0) {
+            return false;
+        }
+
+        $existingId = 0;
+        $checkStmt = $conn->prepare(
+            "SELECT id
+             FROM passport_applications
+             WHERE booking_id = ?
+             ORDER BY id DESC
+             LIMIT 1"
+        );
+        if (!$checkStmt) {
+            return false;
+        }
+        $checkStmt->bind_param('i', $bookingId);
+        $checkStmt->execute();
+        $existing = $checkStmt->get_result()->fetch_assoc();
+        $checkStmt->close();
+        $existingId = (int) ($existing['id'] ?? 0);
+
+        if ($existingId > 0) {
+            $updateStmt = $conn->prepare(
+                "UPDATE passport_applications
+                 SET documents_status = ?
+                 WHERE id = ?"
+            );
+            if (!$updateStmt) {
+                return false;
+            }
+            $updateStmt->bind_param('si', $documentsStatus, $existingId);
+            $ok = $updateStmt->execute();
+            $updateStmt->close();
+            return $ok;
+        }
+
+        $insertStmt = $conn->prepare(
+            "INSERT INTO passport_applications
+                (booking_id, passport_number, country, documents_status, application_status, submission_date, remarks)
+             VALUES (?, ?, ?, ?, ?, ?, ?)"
+        );
+        if (!$insertStmt) {
+            return false;
+        }
+        $empty = '';
+        $applicationStatus = 'not started';
+        $submissionDate = date('Y-m-d');
+        $remarks = 'Updated from Account Executive';
+        $insertStmt->bind_param(
+            'issssss',
+            $bookingId,
+            $empty,
+            $empty,
+            $documentsStatus,
+            $applicationStatus,
+            $submissionDate,
+            $remarks
+        );
+        $ok = $insertStmt->execute();
+        $insertStmt->close();
+        return $ok;
     }
 
     private function calculateProgressForCustomer(mysqli $conn, int $customerId): int

@@ -1,43 +1,9 @@
-<?php
-// Enable error reporting for debugging
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
-
-// Additional debugging to check data flow
-if (empty($selectedDateTours)) {
-    echo '<div style="color: red;">Error: No tours found for the selected date. Please check the data source.</div>';
-} else {
-    echo '<div style="color: green;">Tours data loaded successfully.</div>';
-}
-
-if (empty($selectedDateLabel)) {
-    echo '<div style="color: red;">Error: Selected date label is not set. Please check the controller or data source.</div>';
-}
-
-// Debugging: Check if $selectedDateTours contains data
-echo '<pre>';
-print_r($selectedDateTours);
-echo '</pre>';
-
-// Debugging: Check if $selectedDateLabel is set
-echo 'Selected Date Label: ' . htmlspecialchars($selectedDateLabel) . '<br>';
-?>
-
-<div class="widget-title">
-    Tours on <?= htmlspecialchars($selectedDateLabel) ?>
-    <span class="badge"><?= count($selectedDateTours) ?> tours</span>
-</div>
-
-<?php if (!empty($selectedDateError)): ?>
-<div class="no-guests-message"><?= htmlspecialchars($selectedDateError) ?></div>
-<?php endif; ?>
-
 <div class="tour-list-section">
     <h4 class="panel-subtitle">Scheduled Tours</h4>
-    <?php if (!empty($selectedDateTours)): ?>
+    <?php $visibleTours = array_slice($selectedDateTours ?? [], 0, 5); ?>
+    <?php if (!empty($visibleTours)): ?>
     <div class="tour-cards-grid tour-list" id="tourList">
-        <?php foreach ($selectedDateTours as $index => $tour): ?>
+        <?php foreach ($visibleTours as $index => $tour): ?>
             <?php
             $tourId = (string) ($tour['tour_id'] ?? ('tour-' . $index));
             $tourStatus = (string) ($tour['status'] ?? 'available');
@@ -47,6 +13,8 @@ echo 'Selected Date Label: ' . htmlspecialchars($selectedDateLabel) . '<br>';
             $tourBooked = (int) ($tour['booked'] ?? 0);
             $tourCapacity = (int) ($tour['capacity'] ?? 0);
             $availabilityPercent = $tourCapacity > 0 ? round(($tourBooked / $tourCapacity) * 100, 1) : 0;
+            $tourImageSeed = $tourId !== '' ? $tourId : ('tour-' . $index);
+            $tourImageUrl = 'https://picsum.photos/seed/' . rawurlencode($tourImageSeed) . '/640/360';
             ?>
         <div
             role="button"
@@ -54,7 +22,7 @@ echo 'Selected Date Label: ' . htmlspecialchars($selectedDateLabel) . '<br>';
             class="tour-card tour-list-item <?= htmlspecialchars($tourStatus) ?> <?= $index === 0 ? 'active' : '' ?>"
             data-tour-id="<?= htmlspecialchars($tourId) ?>">
             <div class="tour-thumb" aria-hidden="true">
-                <div class="tour-thumb-placeholder"></div>
+                <img class="tour-thumb-img" src="<?= htmlspecialchars($tourImageUrl, ENT_QUOTES, 'UTF-8') ?>" alt="<?= htmlspecialchars($tourName, ENT_QUOTES, 'UTF-8') ?>" loading="lazy">
             </div>
             <div class="card-header">
                 <div class="card-title">
@@ -70,8 +38,7 @@ echo 'Selected Date Label: ' . htmlspecialchars($selectedDateLabel) . '<br>';
                         <div class="meta-value"><strong><?= $tourBooked ?></strong> / <?= $tourCapacity ?></div>
                     </div>
                     <div class="meta-item">
-                        <div class="meta-label">Fill</div>
-                        <div class="meta-value"><div class="progress-bar small"><div class="progress-fill" style="width: <?= 100 - $availabilityPercent ?>%;"></div></div></div>
+                        <div class="meta-value"><div class="progress-bar small"><div class="progress-fill" style="width: <?= $availabilityPercent ?>%;"></div></div></div>
                     </div>
                 </div>
             </div>

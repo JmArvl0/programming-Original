@@ -32,9 +32,21 @@ class ScheduleRatesController extends BaseController
         $data['pageTitle'] = 'Schedule & Rates';
         $data['pageSubtitle'] = 'Manage tour schedules, availability, and pricing';
 
+        $stylePath = 'css/schedule-rates.css';
+        $styleVersion = @filemtime(__DIR__ . '/../css/schedule-rates.css');
+        if (is_int($styleVersion) && $styleVersion > 0) {
+            $stylePath .= '?v=' . $styleVersion;
+        }
+
+        $scriptPath = 'js/schedule-rates.js';
+        $scriptVersion = @filemtime(__DIR__ . '/../js/schedule-rates.js');
+        if (is_int($scriptVersion) && $scriptVersion > 0) {
+            $scriptPath .= '?v=' . $scriptVersion;
+        }
+
         $this->render('schedule_rates/index', $data, [
-            'styles' => ['css/schedule-rates.css'],
-            'scripts' => ['js/schedule-rates.js']
+            'styles' => [$stylePath],
+            'scripts' => [$scriptPath]
         ]);
     }
 

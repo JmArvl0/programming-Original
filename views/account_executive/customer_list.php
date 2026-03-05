@@ -55,6 +55,21 @@ $buildAccountExecutiveUrl = static function (array $overrides = []) use ($baseQu
                                 <label class="form-label">Phone</label>
                                 <input type="text" class="form-control" id="customerModalPhone" readonly>
                             </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="customerModalDocumentsStatus">Documents Status</label>
+                                <select class="form-select" id="customerModalDocumentsStatus">
+                                    <option value="not started">Not Started</option>
+                                    <option value="submitted">Submitted</option>
+                                    <option value="processing">Processing</option>
+                                    <option value="under review">Under Review</option>
+                                    <option value="approved">Approved</option>
+                                    <option value="verified">Verified</option>
+                                    <option value="completed">Completed</option>
+                                    <option value="missing">Missing</option>
+                                    <option value="incomplete">Incomplete</option>
+                                    <option value="rejected">Rejected</option>
+                                </select>
+                            </div>
                             <div class="col-12">
                                 <label class="form-label">Remarks</label>
                                 <textarea id="customerModalRemarks" class="form-control" rows="3" placeholder="Add remarks..."></textarea>

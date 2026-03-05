@@ -166,7 +166,40 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    
+    async function openApplicantUpdate(applicantId, applicantName) {
+        if (!updateModal || !updateModalTitle || !updateNumberInput || !updateCountryInput) {
+            showError('Update modal is unavailable.');
+            return;
+        }
+
+        updateModalTitle.textContent = 'Update Passport/Visa Application - ' + applicantName;
+        activeApplicantId = applicantId;
+        activeApplicantName = applicantName;
+
+        try {
+            const result = await callAjaxAction('fetch-applicant-detail', { applicantId });
+
+            if (result && result.ok && result.data) {
+                const data = result.data;
+                
+                // Populate form fields
+                if (updateApplicantIdInput) updateApplicantIdInput.value = applicantId || '';
+                if (updateNumberInput) updateNumberInput.value = data.passport_number || '';
+                if (updateCountryInput) updateCountryInput.value = data.country || '';
+                if (updateDocumentsStatusInput) updateDocumentsStatusInput.value = data.documents_status || 'not started';
+                if (updateApplicationStatusInput) updateApplicationStatusInput.value = data.application_status || 'not started';
+                if (updateSubmissionDateInput) updateSubmissionDateInput.value = data.submission_date || '';
+                if (updateRemarksInput) updateRemarksInput.value = data.remarks || '';
+
+                updateModal.show();
+            } else {
+                showError((result && result.message) || 'Failed to load applicant details.');
+            }
+        } catch (error) {
+            showError(error.message || 'Unable to open update form.');
+        }
+    }
+
     async function openApplicantView(applicantId, applicantName) {
         if (!applicantModal || !modalBody || !modalTitle) {
             showError('Applicant modal is unavailable.');
@@ -321,6 +354,84 @@ document.addEventListener('DOMContentLoaded', function () {
                 </div>
             </div>
         `;
+    }
+
+    function updateRowAfterSave(data) {
+        if (!activeApplicantId) {
+            return;
+        }
+
+        // Find the row by applicant ID
+        const rows = document.querySelectorAll('[data-passport-number]');
+        let targetRow = null;
+
+        for (let row of rows) {
+            const btn = row.querySelector(`[data-id="${activeApplicantId}"]`);
+            if (btn) {
+                targetRow = row;
+                break;
+            }
+        }
+
+        if (!targetRow) {
+            return;
+        }
+
+        // Update data attributes
+        if (data.documents_status) {
+            targetRow.setAttribute('data-documents', data.documents_status);
+        }
+        if (data.application_status) {
+            targetRow.setAttribute('data-application', data.application_status);
+        }
+        if (data.country) {
+            targetRow.setAttribute('data-country', data.country);
+        }
+        if (data.passport_number) {
+            targetRow.setAttribute('data-passport-number', data.passport_number);
+        }
+
+        // Update visible cells
+        const cells = targetRow.querySelectorAll('td');
+        if (cells.length >= 5) {
+            // Update passport number (cell 3 - index 3)
+            if (data.passport_number) {
+                const passportCell = cells[3];
+                const currentSpan = passportCell.querySelector('.status-dot');
+                passportCell.textContent = '';
+                if (currentSpan) {
+                    passportCell.appendChild(currentSpan);
+                    passportCell.appendChild(document.createTextNode(' ' + escapeHtml(data.passport_number)));
+                } else {
+                    passportCell.textContent = escapeHtml(data.passport_number);
+                }
+            }
+
+            // Update country (cell 4 - index 4)
+            if (data.country) {
+                cells[4].textContent = escapeHtml(data.country);
+            }
+
+            // Update documents status badge (cell 5 - index 5)
+            if (data.documents_status) {
+                const badgeCell = cells[5];
+                const badge = badgeCell.querySelector('.badge');
+                if (badge) {
+                    badge.textContent = data.documents_status.charAt(0).toUpperCase() + data.documents_status.slice(1);
+                    badge.className = 'badge rounded-pill ' + badgeClass(data.documents_status);
+                }
+            }
+
+            // Update application status badge (cell 6 - index 6)
+            if (data.application_status) {
+                const badgeCell = cells[6];
+                const badge = badgeCell.querySelector('.badge');
+                if (badge) {
+                    badge.textContent = data.application_status.charAt(0).toUpperCase() + data.application_status.slice(1);
+                    badge.className = 'badge rounded-pill ' + badgeClass(data.application_status);
+                }
+            }
+        }
     }
 
 });

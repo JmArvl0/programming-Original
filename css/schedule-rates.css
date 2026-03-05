@@ -5,6 +5,7 @@
     --danger-color: #dc3545;
     --info-color: #17a2b8;
     --secondary-color: #6c757d;
+    --schedule-panel-height: 687px;
 }
 
 .content-container {
@@ -41,7 +42,7 @@
     display: flex;
     gap: 10px;
     align-items: center;
-    justify-content: flex-end;
+    justify-content: flex-start;
     width: 100%;
     flex-wrap: nowrap;
 }
@@ -192,7 +193,7 @@
     box-shadow: 0 2px 15px rgba(0,0,0,0.08);
     width: 100%;
     height: 100%;
-    min-height: 687px;
+    min-height: 620px;
     overflow: hidden;
     display: flex;
     flex-direction: column;
@@ -388,8 +389,8 @@
     border-radius: 10px;
     padding: 20px;
     box-shadow: 0 2px 15px rgba(0,0,0,0.08);
-    height: 100%;
-    min-height: 500px;
+    height: var(--schedule-panel-height);
+    min-height: var(--schedule-panel-height);
     overflow: hidden;
 }
 
@@ -421,6 +422,10 @@
     display: flex;
     flex-direction: column;
     gap: 12px;
+    max-height: var(--schedule-panel-height);
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-right: 10px;
 }
 
 .panel-subtitle {
@@ -438,6 +443,108 @@
 .tour-list {
     display: grid;
     gap: 8px;
+}
+
+.tour-booking-panel .tour-cards-grid.tour-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+}
+
+@media (max-width: 991px) {
+    .tour-booking-panel .tour-cards-grid.tour-list {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
+}
+
+@media (max-width: 575px) {
+    .tour-booking-panel .tour-cards-grid.tour-list {
+        grid-template-columns: 1fr !important;
+    }
+}
+
+.tour-booking-panel .tour-list-section,
+.tour-booking-panel .tour-cards-grid,
+.tour-booking-panel .tour-card {
+    visibility: visible;
+    opacity: 1;
+}
+
+/* Schedule panel card polish */
+.tour-booking-panel .tour-cards-grid.tour-list {
+    gap: 14px;
+    padding: 4px;
+}
+
+.tour-booking-panel .tour-list-item {
+    min-height: 270px;
+    border: 1px solid rgba(31, 42, 55, 0.1);
+    border-radius: 14px;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fcff 100%);
+    box-shadow: 0 8px 18px rgba(21, 39, 57, 0.08);
+    transition: transform 220ms ease, box-shadow 220ms ease, border-color 220ms ease;
+}
+
+.tour-booking-panel .tour-list-item:hover,
+.tour-booking-panel .tour-list-item:focus-within {
+    transform: translateY(-4px);
+    border-color: rgba(54, 117, 136, 0.38);
+    box-shadow: 0 14px 28px rgba(21, 39, 57, 0.12);
+}
+
+.tour-booking-panel .tour-list-item.active {
+    border-color: rgba(54, 117, 136, 0.62);
+    box-shadow: 0 0 0 3px rgba(54, 117, 136, 0.14), 0 14px 28px rgba(21, 39, 57, 0.12);
+}
+
+.tour-booking-panel .tour-list-item .tour-thumb {
+    height: auto;
+    aspect-ratio: 16 / 9;
+    border-radius: 10px;
+}
+
+.tour-booking-panel .tour-list-item .tour-thumb-placeholder {
+    background:
+        radial-gradient(circle at 18% 22%, rgba(54, 117, 136, 0.24), transparent 36%),
+        radial-gradient(circle at 82% 72%, rgba(22, 162, 184, 0.2), transparent 40%),
+        linear-gradient(120deg, #edf6fa 0%, #f9fdff 55%, #eef8fb 100%);
+}
+
+.tour-booking-panel .tour-list-item .tour-list-name {
+    font-size: 0.97rem;
+    letter-spacing: 0.01em;
+}
+
+.tour-booking-panel .tour-list-item .tour-list-meta {
+    font-size: 0.8rem;
+}
+
+.tour-booking-panel .tour-list-item .progress-bar.small {
+    width: 100%;
+    margin-left: 0;
+    margin-top: 6px;
+    height: 8px;
+    background: #e7eef4;
+}
+
+.tour-booking-panel .tour-list-item .progress-fill {
+    background: linear-gradient(90deg, #2f8aa1 0%, #21b287 100%);
+}
+
+.tour-booking-panel::-webkit-scrollbar {
+    width: 10px;
+}
+
+.tour-booking-panel::-webkit-scrollbar-track {
+    background: #edf3f7;
+    border-radius: 999px;
+}
+
+.tour-booking-panel::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #3c8295 0%, #2f6f83 100%);
+    border-radius: 999px;
+}
+
+.tour-booking-panel::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, #327386 0%, #285f70 100%);
 }
 
 .tour-list-item {
@@ -1369,6 +1476,13 @@ tr:hover {
     
     .date-metrics {
         grid-template-columns: repeat(2, 1fr);
+    }
+
+    .calendar-widget,
+    .tour-booking-panel {
+        height: auto;
+        min-height: 0;
+        max-height: none;
     }
     
 }

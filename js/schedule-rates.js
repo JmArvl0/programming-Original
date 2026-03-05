@@ -1,42 +1,4 @@
 document.addEventListener('DOMContentLoaded', function () {
-    const purposeSelect = document.getElementById('purposeSelect');
-    if (purposeSelect) {
-        purposeSelect.addEventListener('change', function () {
-            const form = this.closest('form');
-            const url = new URL(window.location.href);
-            const purpose = this.value || 'schedule';
-
-            url.searchParams.set('purpose', purpose);
-
-            if (form) {
-                const monthInput = form.querySelector('input[name="month"]');
-                const yearInput = form.querySelector('input[name="year"]');
-                const dayInput = form.querySelector('input[name="day"]');
-                const searchInput = form.querySelector('input[name="search"]');
-
-                if (monthInput && monthInput.value) {
-                    url.searchParams.set('month', monthInput.value);
-                }
-                if (yearInput && yearInput.value) {
-                    url.searchParams.set('year', yearInput.value);
-                }
-                if (dayInput && dayInput.value) {
-                    url.searchParams.set('day', dayInput.value);
-                }
-                if (searchInput) {
-                    const searchValue = searchInput.value.trim();
-                    if (searchValue) {
-                        url.searchParams.set('search', searchValue);
-                    } else {
-                        url.searchParams.delete('search');
-                    }
-                }
-            }
-
-            window.location.href = url.toString();
-        });
-    }
-
     const addNewTourBtn = document.getElementById('addNewTourBtn');
     if (addNewTourBtn) {
         addNewTourBtn.addEventListener('click', function () {
@@ -44,16 +6,22 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    document.querySelectorAll('.js-tour-action').forEach((button) => {
-        button.addEventListener('click', function () {
-            const action = this.getAttribute('data-action') || 'view';
-            const tourId = this.getAttribute('data-tour-id') || '';
-            if (action === 'manage') {
-                showInfo(`Managing tour #${tourId}`);
-                return;
-            }
-            showInfo(`Viewing tour #${tourId}`);
-        });
+    document.addEventListener('click', function (event) {
+        const button = event.target.closest('.js-tour-action');
+        if (!button) {
+            return;
+        }
+
+        event.preventDefault();
+        event.stopPropagation();
+
+        const action = button.getAttribute('data-action') || 'view';
+        const tourId = button.getAttribute('data-tour-id') || '';
+        if (action === 'manage') {
+            showInfo(`Managing tour #${tourId}`);
+            return;
+        }
+        showInfo(`Viewing tour #${tourId}`);
     });
 
     const calendarDays = document.querySelectorAll('.calendar-day:not(.empty)');
@@ -64,9 +32,37 @@ document.addEventListener('DOMContentLoaded', function () {
     const selectedDateText = document.getElementById('selectedDateText');
     const availableSlots = document.getElementById('availableSlots');
     const tourListItems = document.querySelectorAll('.tour-list-item');
-    let bookedGuestItems = document.querySelectorAll('.booked-guest-item');
-    const bookedGuestsTitle = document.getElementById('bookedGuestsTitle');
-    const noBookingsMessage = document.getElementById('noBookingsMessage');
+
+    function setActiveTourCard(card, items) {
+        items.forEach((item) => {
+            item.classList.remove('active');
+            item.setAttribute('aria-selected', 'false');
+        });
+        card.classList.add('active');
+        card.setAttribute('aria-selected', 'true');
+    }
+
+    function enhanceTourCards(items) {
+        items.forEach((item, index) => {
+            item.style.setProperty('--i', String(index));
+            item.setAttribute('role', 'button');
+            item.setAttribute('tabindex', '0');
+            if (!item.hasAttribute('aria-selected')) {
+                item.setAttribute('aria-selected', item.classList.contains('active') ? 'true' : 'false');
+            }
+
+            item.addEventListener('keydown', function (event) {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    item.click();
+                }
+            });
+
+            item.addEventListener('click', function () {
+                setActiveTourCard(item, items);
+            });
+        });
+    }
 
     function updateQueryParams(nextParams) {
         const url = new URL(window.location.href);
@@ -134,19 +130,13 @@ document.addEventListener('DOMContentLoaded', function () {
                     availableSlots.textContent = (ds.totalSlots || 0) > 0 ? (ds.availableSlots || 0) + '/' + (ds.totalSlots || 0) : (ds.availableSlots || 0) + '/' + (ds.totalSlots || 0);
                 }
 
-                // Update tours count badge
-                const widgetTitle = document.querySelector('.widget-title');
-                if (widgetTitle && typeof data.selectedDateTours !== 'undefined') {
-                    const badge = widgetTitle.querySelector('.badge');
-                    if (badge) badge.textContent = (data.selectedDateTours.length || 0) + ' tours';
-                }
-
                 // Replace tour list section content
                 const tourListSection = document.querySelector('.tour-list-section');
                 if (tourListSection) {
                     if (Array.isArray(data.selectedDateTours) && data.selectedDateTours.length > 0) {
+                        const visibleTours = data.selectedDateTours.slice(0, 5);
                         const listHtml = ['<h4 class="panel-subtitle">Scheduled Tours</h4>', '<div class="tour-cards-grid tour-list" id="tourList">'];
-                        data.selectedDateTours.forEach((tour, idx) => {
+                        visibleTours.forEach((tour, idx) => {
                             const tourId = tour.tour_id || ('tour-' + idx);
                             const status = tour.status || 'available';
                             const name = tour.tour_name || 'N/A';
@@ -154,16 +144,17 @@ document.addEventListener('DOMContentLoaded', function () {
                             const departure = tour.departure_time ? ' | ' + tour.departure_time : '';
                             const booked = tour.booked || 0;
                             const capacity = tour.capacity || 0;
-                            const availPct = capacity > 0 ? Math.round((booked / capacity) * 100) : 0;
+                            const fillPct = capacity > 0 ? Math.round((booked / capacity) * 100) : 0;
+                            const imageUrl = 'https://picsum.photos/seed/' + encodeURIComponent(String(tourId)) + '/640/360';
                             listHtml.push(`<div role="button" tabindex="0" class="tour-card tour-list-item ${status} ${idx===0? 'active':''}" data-tour-id="${escapeHtml(String(tourId))}">`);
-                            listHtml.push('<div class="tour-thumb"><div class="tour-thumb-placeholder"></div></div>');
+                            listHtml.push(`<div class="tour-thumb"><img class="tour-thumb-img" src="${escapeHtml(imageUrl)}" alt="${escapeHtml(String(name))}" loading="lazy"></div>`);
                             listHtml.push('<div class="card-header">');
                             listHtml.push(`<div class="card-title"><span class="tour-list-name">${escapeHtml(String(name))}</span><div class="card-subtitle"><span class="tour-list-meta">${escapeHtml(String(destination))}${departure}</span></div></div>`);
                             listHtml.push(`<div class="card-rate"><span class="tour-list-count">${booked}/${capacity} booked</span></div>`);
                             listHtml.push('</div>');
                             listHtml.push('<div class="card-body"><div class="card-meta">');
                             listHtml.push(`<div class="meta-item"><div class="meta-label">Booked</div><div class="meta-value"><strong>${booked}</strong> / ${capacity}</div></div>`);
-                            listHtml.push(`<div class="meta-item"><div class="meta-label">Fill</div><div class="meta-value"><div class="progress-bar small"><div class="progress-fill" style="width: ${availPct}%"></div></div></div></div>`);
+                            listHtml.push(`<div class="meta-item"><div class="meta-label">Fill</div><div class="meta-value"><div class="progress-bar small"><div class="progress-fill" style="width: ${fillPct}%"></div></div></div></div>`);
                             listHtml.push('</div></div>');
                             listHtml.push('</div>');
                         });
@@ -171,40 +162,15 @@ document.addEventListener('DOMContentLoaded', function () {
                         tourListSection.innerHTML = listHtml.join('');
 
                         // rebind tour item click behavior
-                        const newItems = tourListSection.querySelectorAll('.tour-list-item');
-                        newItems.forEach((item) => {
-                            item.addEventListener('click', function () {
-                                const tourId = this.getAttribute('data-tour-id') || '';
-                                const tourNameEl = this.querySelector('.tour-list-name');
-                                const tourName = tourNameEl ? tourNameEl.textContent.trim() : '';
-                                newItems.forEach((btn) => btn.classList.remove('active'));
-                                this.classList.add('active');
-                                filterBookedGuestsByTour(tourId, tourName);
-                            });
-                        });
+                        const newItems = Array.from(tourListSection.querySelectorAll('.tour-list-item'));
+                        enhanceTourCards(newItems);
+                        if (newItems.length > 0) {
+                            const activeTour = tourListSection.querySelector('.tour-list-item.active') || newItems[0];
+                            setActiveTourCard(activeTour, newItems);
+                        }
 
                     } else {
                         tourListSection.innerHTML = '<h4 class="panel-subtitle">Scheduled Tours</h4><div class="no-guests-message">No tours scheduled for this date.</div>';
-                    }
-                }
-
-                // Update booked guests list if provided
-                if (Array.isArray(data.selectedDateBookings)) {
-                    // rebuild booked guests list elements if present in DOM
-                    const bookedContainer = document.querySelector('.booked-guests-list');
-                    if (bookedContainer) {
-                        if (data.selectedDateBookings.length > 0) {
-                            const rows = data.selectedDateBookings.map((r) => {
-                                const name = escapeHtml(String(r.guest_name || r.name || 'Guest'));
-                                const tourName = escapeHtml(String(r.tour_name || ''));
-                                return `<div class="booked-guest-item" data-tour-id="${escapeHtml(String(r.tour_id || ''))}"><div class="guest-name">${name}</div><div class="guest-meta">${tourName}</div></div>`;
-                            });
-                            bookedContainer.innerHTML = rows.join('');
-                            bookedGuestItems = document.querySelectorAll('.booked-guest-item');
-                        } else {
-                            bookedContainer.innerHTML = '<div class="no-guests-message">No booked guests for this date yet.</div>';
-                            bookedGuestItems = document.querySelectorAll('.booked-guest-item');
-                        }
                     }
                 }
 
@@ -268,116 +234,13 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    function filterBookedGuestsByTour(tourId, tourName) {
-        let visibleCount = 0;
-        bookedGuestItems.forEach((item) => {
-            const itemTourId = item.getAttribute('data-tour-id') || '';
-            const isVisible = itemTourId === tourId;
-            item.style.display = isVisible ? '' : 'none';
-            if (isVisible) {
-                visibleCount++;
-            }
-        });
+    const initialItems = Array.from(tourListItems);
+    enhanceTourCards(initialItems);
 
-        if (bookedGuestsTitle) {
-            bookedGuestsTitle.textContent = tourName ? `Booked Guests - ${tourName}` : 'Booked Guests';
-        }
-
-        if (noBookingsMessage) {
-            noBookingsMessage.style.display = visibleCount === 0 ? '' : 'none';
-        }
+    if (initialItems.length > 0) {
+        const activeTour = document.querySelector('.tour-list-item.active') || initialItems[0];
+        setActiveTourCard(activeTour, initialItems);
     }
-
-    tourListItems.forEach((item) => {
-        item.addEventListener('click', function () {
-            const tourId = this.getAttribute('data-tour-id') || '';
-            const tourNameEl = this.querySelector('.tour-list-name');
-            const tourName = tourNameEl ? tourNameEl.textContent.trim() : '';
-            tourListItems.forEach((btn) => btn.classList.remove('active'));
-            this.classList.add('active');
-            filterBookedGuestsByTour(tourId, tourName);
-        });
-    });
-
-    if (tourListItems.length > 0) {
-        const activeTour = document.querySelector('.tour-list-item.active') || tourListItems[0];
-        const activeTourId = activeTour.getAttribute('data-tour-id') || '';
-        const activeTourNameEl = activeTour.querySelector('.tour-list-name');
-        const activeTourName = activeTourNameEl ? activeTourNameEl.textContent.trim() : '';
-        activeTour.classList.add('active');
-        filterBookedGuestsByTour(activeTourId, activeTourName);
-    }
-
-    const tourRows = Array.from(document.querySelectorAll('.tour-rate-row'));
-    const paginationEl = document.getElementById('tablePagination');
-    const entriesStart = document.getElementById('entriesStart');
-    const entriesEnd = document.getElementById('entriesEnd');
-    const entriesTotal = document.getElementById('entriesTotal');
-
-    if (!tourRows.length || !paginationEl || !entriesStart || !entriesEnd || !entriesTotal) {
-        return;
-    }
-
-    const pageSize = 10;
-    let currentPage = 1;
-
-    function buildPagination(totalPages) {
-        paginationEl.innerHTML = '';
-
-        const previous = document.createElement('li');
-        previous.className = `page-item ${currentPage === 1 ? 'disabled' : ''}`;
-        previous.innerHTML = '<a class="page-link" href="#">Previous</a>';
-        previous.addEventListener('click', function (event) {
-            event.preventDefault();
-            if (currentPage > 1) {
-                renderPage(currentPage - 1);
-            }
-        });
-        paginationEl.appendChild(previous);
-
-        for (let page = 1; page <= totalPages; page++) {
-            const pageItem = document.createElement('li');
-            pageItem.className = `page-item ${page === currentPage ? 'active' : ''}`;
-            pageItem.innerHTML = `<a class="page-link" href="#">${page}</a>`;
-            pageItem.addEventListener('click', function (event) {
-                event.preventDefault();
-                renderPage(page);
-            });
-            paginationEl.appendChild(pageItem);
-        }
-
-        const next = document.createElement('li');
-        next.className = `page-item ${currentPage === totalPages ? 'disabled' : ''}`;
-        next.innerHTML = '<a class="page-link" href="#">Next</a>';
-        next.addEventListener('click', function (event) {
-            event.preventDefault();
-            if (currentPage < totalPages) {
-                renderPage(currentPage + 1);
-            }
-        });
-        paginationEl.appendChild(next);
-    }
-
-    function renderPage(page) {
-        const totalRows = tourRows.length;
-        const totalPages = Math.max(1, Math.ceil(totalRows / pageSize));
-        currentPage = Math.min(Math.max(1, page), totalPages);
-
-        const startIndex = (currentPage - 1) * pageSize;
-        const endIndex = Math.min(startIndex + pageSize, totalRows);
-
-        tourRows.forEach((row, index) => {
-            row.style.display = index >= startIndex && index < endIndex ? '' : 'none';
-        });
-
-        entriesStart.textContent = totalRows === 0 ? '0' : String(startIndex + 1);
-        entriesEnd.textContent = totalRows === 0 ? '0' : String(endIndex);
-        entriesTotal.textContent = String(totalRows);
-
-        buildPagination(totalPages);
-    }
-
-    renderPage(1);
 
     // Trigger card animations by adding .play class to tour-cards-grid
     function triggerCardAnimations() {

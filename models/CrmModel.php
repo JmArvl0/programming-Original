@@ -1,7 +1,7 @@
 <?php
 require_once __DIR__ . '/../config/database.php';
 
-class CRMModel
+class CrmTierModel
 {
     public static function getCompletedBookingCount(int $customerId): int
     {

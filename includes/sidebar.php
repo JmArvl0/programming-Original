@@ -1,12 +1,7 @@
 <?php
 $currentPage = basename($_SERVER['PHP_SELF'] ?? '');
-$selectedPurposeSidebar = isset($_GET['purpose']) ? (string) $_GET['purpose'] : 'schedule';
 $selectedFacilitiesViewSidebar = isset($_GET['view']) ? (string) $_GET['view'] : 'reservation_requests';
 $isScheduleRatesPage = $currentPage === 'schedule_rates.php';
-$isScheduleListActive = $isScheduleRatesPage && $selectedPurposeSidebar !== 'tour_rates';
-$isRatesListActive = $isScheduleRatesPage && $selectedPurposeSidebar === 'tour_rates';
-$isScheduleRatesExpanded = $isScheduleRatesPage ? 'true' : 'false';
-$scheduleRatesCollapseClass = $isScheduleRatesPage ? 'show' : '';
 $isFacilitiesPage = $currentPage === 'facilities.php';
 $isFacilitiesRequestsActive = $isFacilitiesPage && $selectedFacilitiesViewSidebar === 'reservation_requests';
 $isFacilitiesAvailabilityActive = $isFacilitiesPage && $selectedFacilitiesViewSidebar === 'availability_overview';
@@ -73,30 +68,15 @@ $facilitiesCollapseClass = $isFacilitiesPage ? 'show' : '';
             </a>
         </li>
         
-        <li class="nav-item mb-2 nav-item-has-submenu">
-            <a href="#scheduleRatesSubmenu" class="nav-link text-white d-flex align-items-center p-3 rounded <?php echo $isScheduleRatesPage ? 'active' : ''; ?>" data-bs-toggle="collapse" role="button" aria-expanded="<?php echo $isScheduleRatesExpanded; ?>" aria-controls="scheduleRatesSubmenu" title="Schedule & Rates">
+        <li class="nav-item mb-2">
+            <a href="schedule_rates.php" class="nav-link text-white d-flex align-items-center p-3 rounded <?php echo $isScheduleRatesPage ? 'active' : ''; ?>" data-bs-toggle="tooltip" title="Schedule & Rates">
                 <span class="nav-icon me-3 d-flex align-items-center justify-content-center" style="width: 28px; height: 28px;">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
                         <path d="M3.5 0a.5.5 0 0 1 .5.5V1h8V.5a.5.5 0 0 1 1 0V1h1a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h1V.5a.5.5 0 0 1 .5-.5M1 4v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V4z"/>
                     </svg>
                 </span>
                 <span class="nav-text">Schedule & Rates</span>
-                <span class="submenu-caret ms-auto">
-                    <i class="fas fa-chevron-down"></i>
-                </span>
             </a>
-            <ul class="submenu collapse <?php echo $scheduleRatesCollapseClass; ?>" id="scheduleRatesSubmenu">
-                <li>
-                    <a href="schedule_rates.php?purpose=schedule" class="submenu-link <?php echo $isScheduleListActive ? 'active' : ''; ?>">
-                        List of Schedule
-                    </a>
-                </li>
-                <li>
-                    <a href="schedule_rates.php?purpose=tour_rates" class="submenu-link <?php echo $isRatesListActive ? 'active' : ''; ?>">
-                        List of Rates
-                    </a>
-                </li>
-            </ul>
         </li>
         
         <li class="nav-item mb-2">

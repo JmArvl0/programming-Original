@@ -27,6 +27,17 @@ if (!function_exists('application_status_code')) {
         if (is_int($value) && array_key_exists($value, application_statuses())) {
             return $value;
         }
+        if (is_string($value)) {
+            // Accept status values persisted by different Passport/Visa flows.
+            $aliases = [
+                'processing' => 2,
+                'pending' => 1,
+                'action required' => 4
+            ];
+            if (isset($aliases[$value])) {
+                return $aliases[$value];
+            }
+        }
         if (is_string($value) && isset($map[strtolower($value)])) {
             return (int) $map[strtolower($value)];
         }
@@ -38,6 +49,16 @@ if (!function_exists('application_status_code')) {
 if (!function_exists('application_status_label')) {
     function application_status_label($value): string
     {
+        $normalized = strtolower(trim((string) $value));
+        if ($normalized === 'processing') {
+            return 'Processing';
+        }
+        if ($normalized === 'pending') {
+            return 'Pending';
+        }
+        if ($normalized === 'action required') {
+            return 'Action Required';
+        }
         $code = application_status_code($value);
         $labels = application_statuses();
         return $labels[$code] ?? 'Not Started';
@@ -47,6 +68,16 @@ if (!function_exists('application_status_label')) {
 if (!function_exists('application_status_badge_class')) {
     function application_status_badge_class($value): string
     {
+        $normalized = strtolower(trim((string) $value));
+        if ($normalized === 'processing') {
+            return 'bg-info text-dark';
+        }
+        if ($normalized === 'pending') {
+            return 'bg-secondary';
+        }
+        if ($normalized === 'action required') {
+            return 'bg-danger';
+        }
         $code = application_status_code($value);
         switch ($code) {
             case 0: // Not Started
@@ -113,6 +144,18 @@ if (!function_exists('document_status_code')) {
         if (is_int($value) && array_key_exists($value, document_statuses())) {
             return $value;
         }
+        if (is_string($value)) {
+            // Keep backward compatibility with modules that persist alternative labels.
+            $aliases = [
+                'approved' => 6,
+                'rejected' => 1,
+                'under review' => 4,
+                'pending' => 3
+            ];
+            if (isset($aliases[$value])) {
+                return $aliases[$value];
+            }
+        }
         if (is_string($value) && isset($map[strtolower($value)])) {
             return (int) $map[strtolower($value)];
         }
@@ -124,6 +167,10 @@ if (!function_exists('document_status_code')) {
 if (!function_exists('document_status_label')) {
     function document_status_label($value): string
     {
+        $normalized = strtolower(trim((string) $value));
+        if ($normalized === 'approved') {
+            return 'Approved';
+        }
         $code = document_status_code($value);
         $labels = document_statuses();
         return $labels[$code] ?? 'Not Started';

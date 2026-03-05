@@ -4,7 +4,6 @@
 
         <div class="tour-booking-panel">
             <?php require __DIR__ . '/components/tour_list.php'; ?>
-            <?php require __DIR__ . '/components/booked_guests.php'; ?>
         </div>
     </div>
 </div>

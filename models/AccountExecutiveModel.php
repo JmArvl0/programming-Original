@@ -78,11 +78,12 @@ class AccountExecutiveModel
         $docStageExpr = "
             CASE
                 WHEN pa.booking_id IS NULL THEN 'not started'
-                WHEN LOWER(TRIM(pa.application_status)) IN ('visa issued', 'approved') THEN 'finished'
-                WHEN LOWER(TRIM(pa.application_status)) IN ('processing', 'under review') THEN LOWER(TRIM(pa.application_status))
+                WHEN LOWER(TRIM(pa.documents_status)) IN ('approved', 'complete', 'completed', 'verified') THEN 'approved'
                 WHEN LOWER(TRIM(pa.documents_status)) = 'missing' THEN 'missing'
-                WHEN LOWER(TRIM(pa.documents_status)) = 'submitted' OR LOWER(TRIM(pa.application_status)) = 'pending' THEN 'pending'
-                WHEN LOWER(TRIM(pa.documents_status)) = 'not started' OR LOWER(TRIM(pa.application_status)) = 'not started' THEN 'not started'
+                WHEN LOWER(TRIM(pa.documents_status)) = 'submitted' THEN 'pending'
+                WHEN LOWER(TRIM(pa.documents_status)) IN ('processing', 'under review') THEN LOWER(TRIM(pa.documents_status))
+                WHEN LOWER(TRIM(pa.documents_status)) IN ('rejected', 'incomplete', 'pending') THEN LOWER(TRIM(pa.documents_status))
+                WHEN LOWER(TRIM(pa.documents_status)) = 'not started' THEN 'not started'
                 ELSE LOWER(TRIM(COALESCE(pa.documents_status, 'not started')))
             END
         ";
@@ -113,14 +114,19 @@ class AccountExecutiveModel
             INNER JOIN customers c ON b.customer_id = c.id
             LEFT JOIN tours t ON t.id = b.tour_id
             LEFT JOIN (
-                SELECT pa1.* FROM passport_applications pa1
+                SELECT pa1.*, b1.customer_id
+                FROM passport_applications pa1
+                INNER JOIN bookings b1 ON pa1.booking_id = b1.id
                 INNER JOIN (
-                    SELECT booking_id, MAX(CONCAT(COALESCE(updated_at,'1970-01-01 00:00:00'), '-', LPAD(id,10,'0'))) AS max_key
-                    FROM passport_applications
-                    GROUP BY booking_id
-                ) pa_max ON pa1.booking_id = pa_max.booking_id
+                    SELECT
+                        b2.customer_id,
+                        MAX(CONCAT(COALESCE(pa2.updated_at,'1970-01-01 00:00:00'), '-', LPAD(pa2.id,10,'0'))) AS max_key
+                    FROM passport_applications pa2
+                    INNER JOIN bookings b2 ON pa2.booking_id = b2.id
+                    GROUP BY b2.customer_id
+                ) pa_max ON b1.customer_id = pa_max.customer_id
                     AND CONCAT(COALESCE(pa1.updated_at,'1970-01-01 00:00:00'), '-', LPAD(pa1.id,10,'0')) = pa_max.max_key
-            ) pa ON pa.booking_id = b.id
+            ) pa ON pa.customer_id = c.id
             LEFT JOIN (
                 SELECT p1.* FROM payments p1
                 INNER JOIN (
@@ -156,7 +162,7 @@ class AccountExecutiveModel
                 $whereParts[] = "($paymentExpr IN ('unpaid', 'overdue', 'failed'))";
                 break;
             case 'finished':
-                $whereParts[] = "($docStageExpr = 'finished' AND $paymentExpr = 'paid')";
+                $whereParts[] = "($docStageExpr IN ('approved', 'complete', 'completed', 'verified') AND $paymentExpr = 'paid')";
                 break;
             case 'refund':
                 $whereParts[] = "($paymentExpr = 'refunded' OR LOWER(TRIM(COALESCE(ae.case_status, b.booking_status, ''))) = 'refund')";

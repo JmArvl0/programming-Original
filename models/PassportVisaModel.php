@@ -55,7 +55,10 @@ class PassportVisaModel
             JOIN bookings b ON ae.booking_id = b.id
             JOIN customers c ON b.customer_id = c.id
             LEFT JOIN passport_applications pa 
-                ON pa.booking_id = ae.booking_id
+                ON pa.booking_id = ae.booking_id AND pa.id = (
+                    SELECT MAX(id) FROM passport_applications 
+                    WHERE booking_id = ae.booking_id
+                )
             $whereSql
             ORDER BY c.full_name ASC
             LIMIT ? OFFSET ?
@@ -139,29 +142,82 @@ class PassportVisaModel
     {
         $conn = getDBConnection();
 
-        $sql = "
-            UPDATE passport_applications
-            SET passport_number = ?,
-                country = ?,
-                documents_status = ?,
-                application_status = ?,
-                submission_date = ?,
-                remarks = ?
-            WHERE booking_id = ?
-        ";
+        // Extract and prepare values
+        $passportNumber = $data['passport_number'] ?? '';
+        $country = $data['country'] ?? '';
+        $documentsStatus = $data['documents_status'] ?? 'not started';
+        $applicationStatus = $data['application_status'] ?? 'not started';
+        $submissionDate = $data['submission_date'] ?? '';
+        $remarks = $data['remarks'] ?? '';
+
+        // First, check if a passport_application record exists for this booking_id
+        $checkSql = "SELECT MAX(id) as id FROM passport_applications WHERE booking_id = ? LIMIT 1";
+        $checkStmt = $conn->prepare($checkSql);
+        if (!$checkStmt) {
+            closeDBConnection($conn);
+            return false;
+        }
+
+        $checkStmt->bind_param("i", $bookingId);
+        $checkStmt->execute();
+        $checkResult = $checkStmt->get_result();
+        $existingRecord = $checkResult->fetch_assoc();
+        $checkStmt->close();
+
+        if ($existingRecord && $existingRecord['id']) {
+            // Record exists - UPDATE the most recent one
+            $recordId = $existingRecord['id'];
+            $sql = "
+                UPDATE passport_applications
+                SET passport_number = ?,
+                    country = ?,
+                    documents_status = ?,
+                    application_status = ?,
+                    submission_date = ?,
+                    remarks = ?
+                WHERE id = ?
+            ";
+        } else {
+            // Record doesn't exist - INSERT it
+            $sql = "
+                INSERT INTO passport_applications 
+                    (booking_id, passport_number, country, documents_status, application_status, submission_date, remarks)
+                VALUES 
+                    (?, ?, ?, ?, ?, ?, ?)
+            ";
+        }
 
         $stmt = $conn->prepare($sql);
+        if (!$stmt) {
+            closeDBConnection($conn);
+            return false;
+        }
 
-        $stmt->bind_param(
-            "ssssssi",
-            $data['passport_number'],
-            $data['country'],
-            $data['documents_status'],
-            $data['application_status'],
-            $data['submission_date'],
-            $data['remarks'],
-            $bookingId
-        );
+        if ($existingRecord && $existingRecord['id']) {
+            // UPDATE binding - use the record ID
+                $stmt->bind_param(
+                    "ssssssi",
+                $passportNumber,
+                $country,
+                $documentsStatus,
+                $applicationStatus,
+                $submissionDate,
+                $remarks,
+                $recordId
+            );
+        } else {
+            // INSERT binding
+            $stmt->bind_param(
+                "issssss",
+                $bookingId,
+                $passportNumber,
+                $country,
+                $documentsStatus,
+                $applicationStatus,
+                $submissionDate,
+                $remarks
+            );
+        }
 
         $success = $stmt->execute();
         $stmt->close();
@@ -183,7 +239,10 @@ class PassportVisaModel
             FROM account_executive ae
             JOIN bookings b ON ae.booking_id = b.id
             LEFT JOIN passport_applications pa 
-                ON pa.booking_id = ae.booking_id
+                ON pa.booking_id = ae.booking_id AND pa.id = (
+                    SELECT MAX(id) FROM passport_applications 
+                    WHERE booking_id = ae.booking_id
+                )
         ";
 
         $result = $conn->query($sql);
@@ -232,7 +291,10 @@ class PassportVisaModel
             JOIN bookings b ON ae.booking_id = b.id
             JOIN customers c ON b.customer_id = c.id
             LEFT JOIN passport_applications pa 
-                ON pa.booking_id = ae.booking_id
+                ON pa.booking_id = ae.booking_id AND pa.id = (
+                    SELECT MAX(id) FROM passport_applications 
+                    WHERE booking_id = ae.booking_id
+                )
             LEFT JOIN passport_documents pd
                 ON pd.passport_application_id = pa.id
             WHERE ae.booking_id = ?
